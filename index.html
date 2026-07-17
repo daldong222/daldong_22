@@ -236,7 +236,7 @@
       <div class="logo"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></div>
       <div>
         <h1>달동이 경제모니터링</h1>
-        <div class="sub">MARKET MONITOR</div>
+        <div class="sub">MARKET MONITOR · v2</div>
       </div>
     </div>
     <div class="top-right">
@@ -331,11 +331,11 @@ function genDrawdown(cfg){
 
 /* 통합 라인 차트 */
 function chartSVG(slice, opts){
-  const W=600,H=240,padT=30,padB=34,padL=opts.padL||40,padR=12;
+  const W=600,H=240,padT=30,padB=34,padL=opts.padL||(opts.drawdown?40:58),padR=12;
   const pW=W-padL-padR,pH=H-padT-padB,n=slice.length;
   let mn=Infinity,mx=-Infinity; for(const p of slice){if(p.v<mn)mn=p.v; if(p.v>mx)mx=p.v;}
   let yBot,yTop;
-  if(opts.drawdown){ yBot=Math.min(-5,Math.floor((mn-1.2)/5)*5); yTop=Math.max(3.5,(0-yBot)*0.24); }
+  if(opts.drawdown){ yBot=Math.min(-5,Math.floor((mn-1.2)/5)*5); yTop=Math.max(4,(0-yBot)*0.30); }
   else{
     const pad=(mx-mn)*0.22||Math.abs(mx)*0.08||1;
     yTop=mx+pad; yBot=mn-pad;
@@ -595,7 +595,20 @@ function closeModal(){const mo=document.getElementById("modal");mo.classList.rem
 /* ============================================================
    렌더러
    ============================================================ */
-function fmtYFactory(m){ return v=> (m.pre||"")+fmt(v, m.decimals??0)+(m.suf||""); }
+function fmtYFactory(m){
+  return v=>{
+    const pre=m.pre||"", suf=m.suf||"", a=Math.abs(v), d=m.decimals??0;
+    if(suf==="원"){
+      if(a>=1e8) return (v/1e8).toFixed(1)+"억";
+      if(a>=1e4) return (v/1e4).toFixed(a>=1e6?0:1)+"만";
+      return fmt(v,d)+"원";
+    }
+    if(suf==="B") return pre+(v/1000).toFixed(1)+"T";      // 십억달러 → 조달러
+    if(a>=1e6) return pre+(v/1e6).toFixed(1)+"M"+suf;
+    if(a>=1e4) return pre+Math.round(v/1e3)+"K"+suf;
+    return pre+fmt(v,d)+suf;
+  };
+}
 
 function priceCard(m){
   const series=genPrice(m);
