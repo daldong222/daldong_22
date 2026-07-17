@@ -3,6 +3,7 @@
 module.exports = async (req, res) => {
   const symbols = String(req.query.symbols || "").split(",").filter(Boolean);
   const range = req.query.range || "5y";
+  const wantIntra = req.query.intra === "1";   // 분봉은 명시적으로 요청할 때만 (기본은 일봉만 → 가벼움)
   const out = {};
 
   async function fetchChart(sym, rng, interval) {
