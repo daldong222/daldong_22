@@ -257,10 +257,8 @@
   </div>
 
   <footer>
-    <div class="note">
-      <b>실시간으로 바꾸려면?</b> 지금은 2026-07-16 시세 기준 샘플이에요. 실시간은 Vercel 같은 곳에 서버(서버리스 API)를 두고, 거기서 <b>FRED</b>(무료 API 키)와 <b>Yahoo Finance</b>를 대신 호출해 프론트로 넘기면 됩니다(브라우저 직접 호출은 CORS로 막힘). 코드 안 <code>MODULES</code> 설정값과 <code>loadLiveData()</code>만 채우면 낙폭 계산·차트·판정·요약은 그대로 돌아갑니다.
-    </div>
-    <div>데이터: 예시 스냅샷(FRED · Yahoo Finance 지표를 2026-07-16 기준으로 구성) · <span class="sig">개인 견해, 투자 권유 아닙니다.</span></div>
+    <div style="margin-bottom:8px">데이터 출처: Federal Reserve Bank of St. Louis (FRED) · Yahoo Finance · CNN · Telegram</div>
+    <div class="sig">본 지식재산권은 달동이에게 있음을 알려드립니다. 본 자료는 정보 제공 목적으로만 제공되며, 투자 권유 또는 투자 판단의 근거로 활용될 수 없습니다.</div>
   </footer>
 </div>
 
@@ -328,13 +326,13 @@ function genDrawdown(cfg){
 
 /* 통합 라인 차트 */
 function chartSVG(slice, opts){
-  const W=600,H=168,padT=12,padB=20,padL=opts.padL||36,padR=8;
+  const W=600,H=190,padT=20,padB=26,padL=opts.padL||38,padR=10;
   const pW=W-padL-padR,pH=H-padT-padB,n=slice.length;
   let mn=Infinity,mx=-Infinity; for(const p of slice){if(p.v<mn)mn=p.v; if(p.v>mx)mx=p.v;}
   let yBot,yTop;
-  if(opts.drawdown){ yTop=0.6; yBot=Math.min(-5,Math.floor((mn-1.2)/5)*5); }
+  if(opts.drawdown){ yBot=Math.min(-5,Math.floor((mn-1.2)/5)*5); yTop=Math.max(1.2,(0-yBot)*0.08); }
   else{
-    const pad=(mx-mn)*0.12||Math.abs(mx)*0.05||1;
+    const pad=(mx-mn)*0.14||Math.abs(mx)*0.06||1;
     yTop=mx+pad; yBot=mn-pad;
     if(opts.zeroline && yBot>0) yBot=Math.min(0,yBot);
     if(opts.zeroline && yBot>-0.05 && mn>=0) yBot=0;
@@ -395,8 +393,11 @@ const unitStr=(v,m)=> (m.pre||"")+fmt(v,m.decimals)+(m.suf||"");
 /* ============================================================
    모듈 정의  (실제 2026-07-16 시세 기준 · 신흥국/옵션 일부 예시값)
    ============================================================ */
-const RANGE_STD=[["1Y",1],["2Y",2],["3Y",3]];
-const RANGE_MAC=[["1Y",1],["3Y",3],["5Y",5]];
+const RANGE_MKT=[["1일",1],["1주",7],["1달",30],["1년",365],["3년",1095],["5년",1825]];
+const RANGE_MAC=[["1년",365],["3년",1095],["5년",1825]];
+const RANGE_STD=RANGE_MKT;
+const FRED_IDS=new Set(["us10y","curve","m2","unrate","claims","walcl","reserves"]);
+const DEF_MKT=3, DEF_MAC=0;
 
 const GROUPS = [
  { title:"글로벌 자산", em:"📊", cols:2, mods:[
@@ -505,7 +506,7 @@ const GROUPS = [
  { title:"섹터 자금 흐름", em:"🔥", cols:1, mods:[
    {id:"sectors",kind:"heat",name:"S&P500 섹터 등락률",tk:"전일 대비 · 11개 섹터",color:"#5b9bff",
      data:[["반도체",-2.8],["기술",-1.5],["임의소비재",-0.6],["통신",-0.9],["금융",0.4],["산업재",0.2],["소재",1.1],["헬스케어",0.6],["필수소비재",0.9],["유틸리티",0.7],["부동산",0.3],["에너지",2.1]],
-     ex:"양수=자금 유입, 음수=유출. 7/16은 반도체 급락(마이크론發) vs 에너지·방어주 강세의 '두 개의 시장'."},
+     ex:"양수=자금 유입, 음수=유출. 방어주(유틸·필수소비)만 초록이면 위험회피 국면, 경기민감주(반도체·에너지)가 초록이면 위험선호 국면이에요."},
  ]},
 ];
 
@@ -595,14 +596,14 @@ function priceCard(m){
   const series=genPrice(m);
   const el=document.createElement("article"); el.className="card";
   const chg=m.day||0, cc=chg>0?"up":(chg<0?"down":"flat"), arrow=chg>0?"▲":(chg<0?"▼":"·");
-  const ranges=m.ranges||RANGE_STD;
+  const _fred=FRED_IDS.has(m.id); const ranges=_fred?RANGE_MAC:RANGE_MKT; const _def=_fred?DEF_MAC:DEF_MKT;
   const opts={color:m.color, zeroline:m.zeroline, thresholds:m.thresholds, gridvals:m.gridvals,
     fmtY:m.fmtY||(m.suf==="%"?(v=>v.toFixed(m.decimals)+"%"):fmtYFactory(m)), yd:m.decimals, aria:m.name+" 추이"};
   el.innerHTML=`
     <div class="chead">
       <div class="cname"><span class="sw" style="background:${m.color}"></span>
         <span><span class="nm">${m.name}</span><span class="tk">${m.tk}</span></span></div>
-      <div class="range" role="group" aria-label="${m.name} 기간">${ranges.map((r,i)=>`<button data-y="${r[1]}" aria-pressed="${i===0}">${r[0]}</button>`).join("")}</div>
+      <div class="range" role="group" aria-label="${m.name} 기간">${ranges.map((r,i)=>`<button data-y="${r[1]}" aria-pressed="${i===_def}">${r[0]}</button>`).join("")}</div>
     </div>
     <div class="chart" data-chart></div>
     <div class="stat">
@@ -611,25 +612,25 @@ function priceCard(m){
     </div>
     ${m.ex?`<div class="explain">${m.ex}${m.chips?`<div class="chips">${m.chips.map(c=>`<span class="chip"><b>${c[0]}</b> ${c[1]}</span>`).join("")}</div>`:""}</div>`:""}`;
   const box=el.querySelector("[data-chart]");
-  const draw=y=>{ const cut=Date.now()-y*365*864e5; let sl=series.filter(p=>p.t.getTime()>=cut); if(sl.length<2) sl=series; box.innerHTML=chartSVG(sl,opts); };
+  const draw=(days)=>{ let src=series; if(days<=7){ const iv=(m.kind==="dd")?m._intraDD:m._intra; if(iv&&iv.length) src=iv; } const cut=Date.now()-days*864e5; let sl=src.filter(p=>p.t.getTime()>=cut); if(sl.length<2) sl=src.slice(-8); box.innerHTML=chartSVG(sl,opts); };
   el.querySelectorAll(".range button").forEach(b=>b.addEventListener("click",()=>{
     el.querySelectorAll(".range button").forEach(x=>x.setAttribute("aria-pressed", x===b?"true":"false"));
     draw(+b.dataset.y);
   }));
-  draw(ranges[0][1]);
+  draw(ranges[_def][1]);
   return el;
 }
 
 function ddCard(m){
   const series=genDrawdown(m), dd=series[series.length-1].v, v=verdict(dd);
   const el=document.createElement("article"); el.className="card";
-  const ranges=m.ranges||RANGE_STD;
+  const _fred=FRED_IDS.has(m.id); const ranges=_fred?RANGE_MAC:RANGE_MKT; const _def=_fred?DEF_MAC:DEF_MKT;
   const opts={color:m.color, drawdown:true, aria:m.name+" 낙폭"};
   el.innerHTML=`
     <div class="chead">
       <div class="cname"><span class="sw" style="background:${m.color}"></span>
         <span><span class="nm">${m.name}</span><span class="tk">${m.tk}</span></span></div>
-      <div class="range" role="group" aria-label="${m.name} 기간">${ranges.map((r,i)=>`<button data-y="${r[1]}" aria-pressed="${i===0}">${r[0]}</button>`).join("")}</div>
+      <div class="range" role="group" aria-label="${m.name} 기간">${ranges.map((r,i)=>`<button data-y="${r[1]}" aria-pressed="${i===_def}">${r[0]}</button>`).join("")}</div>
     </div>
     <div class="chart" data-chart></div>
     <div class="stat">
@@ -638,12 +639,12 @@ function ddCard(m){
     </div>
     ${m.ex?`<div class="explain">${m.ex}</div>`:""}`;
   const box=el.querySelector("[data-chart]");
-  const draw=y=>{ const cut=Date.now()-y*365*864e5; let sl=series.filter(p=>p.t.getTime()>=cut); if(sl.length<2) sl=series; box.innerHTML=chartSVG(sl,opts); };
+  const draw=(days)=>{ let src=series; if(days<=7){ const iv=(m.kind==="dd")?m._intraDD:m._intra; if(iv&&iv.length) src=iv; } const cut=Date.now()-days*864e5; let sl=src.filter(p=>p.t.getTime()>=cut); if(sl.length<2) sl=src.slice(-8); box.innerHTML=chartSVG(sl,opts); };
   el.querySelectorAll(".range button").forEach(b=>b.addEventListener("click",()=>{
     el.querySelectorAll(".range button").forEach(x=>x.setAttribute("aria-pressed", x===b?"true":"false"));
     draw(+b.dataset.y);
   }));
-  draw(ranges[0][1]);
+  draw(ranges[_def][1]);
   return el;
 }
 
@@ -717,11 +718,11 @@ function buildHero(){
   const find=id=>{for(const g of GROUPS)for(const m of g.mods)if(m.id===id)return m;};
   hero.innerHTML=pick.map(([id])=>{
     const m=find(id);
-    let v,c,cc;
-    if(m.kind==="dd"){const dd=(m.level/m.ath-1)*100; v=dd.toFixed(1)+"%"; const vd=verdict(dd); c=`현재 ${unitStr(m.level,m)}`; cc=vd.c;}
-    else{v=unitStr(m.level,m); const d=m.day||0; c=(d>0?"▲ ":d<0?"▼ ":"")+Math.abs(d).toFixed(2)+"%"; cc=d>0?"var(--green)":d<0?"var(--red)":"var(--dim)";}
+    let head, cc; const sub=`현재 ${unitStr(m.level,m)}`;
+    if(m.kind==="dd"){ const dd=(m.level/m.ath-1)*100; head=dd.toFixed(1)+"%"; cc=verdict(dd).c; }
+    else{ const d=m.day||0; head=(d>0?"▲ ":d<0?"▼ ":"")+Math.abs(d).toFixed(2)+"%"; cc=d>0?"var(--green)":d<0?"var(--red)":"var(--dim)"; }
     return `<div class="htile"><div class="hk"><span class="sw" style="background:${m.color}"></span>${m.name}</div>
-      <div class="hv">${v}</div><div class="hc" style="color:${cc}">${c}</div></div>`;
+      <div class="hv" style="color:${cc}">${head}</div><div class="hc">${sub}</div></div>`;
   }).join("");
 }
 
@@ -790,7 +791,7 @@ const ECON = { items:[
   {d:"07-14", t:"21:30", name:"6월 근원 CPI (전년比)", imp:3, prev:"2.9%", fc:"2.9%", act:"2.6%", arrow:" ▼", tone:"good"},
   {d:"07-15", t:"21:30", name:"6월 PPI (전년比)", imp:2, prev:"6.5%", fc:"—", act:"5.5%", arrow:" ▼", tone:"good"},
   {d:"07-17", t:"23:00", name:"미시간대 소비자심리(예비)", imp:2, prev:"—", fc:"—", tone:"upcoming"},
-  {d:"07-30", t:"03:00", name:"FOMC 금리결정", imp:3, prev:"4.25~4.50%", fc:"동결 예상", tone:"upcoming"},
+  {d:"07-30", t:"03:00", name:"FOMC 금리결정", imp:3, prev:"3.50~3.75%", fc:"동결 유력", tone:"upcoming"},
   {d:"08-07", t:"21:30", name:"7월 고용보고서(NFP)", imp:3, prev:"—", fc:"—", tone:"upcoming"},
   {d:"08-12", t:"21:30", name:"7월 CPI", imp:3, prev:"3.5%", fc:"—", tone:"upcoming"},
 ]};
@@ -854,8 +855,10 @@ async function hydrate(){
       const d=data[sym]; if(!d||d.error||!d.closes||!d.closes.length) continue;
       const m=find(mid); if(!m) continue;
       const closes=d.closes.map(c=>({t:new Date(c.t),v:c.v}));
-      if(m.kind==="dd"){ m._liveClose=closes; m.level=d.price; m.ath=Math.max.apply(null,closes.map(c=>c.v)); }
-      else { m._live=closes; m.level=d.price; if(typeof d.changePct==="number") m.day=+d.changePct.toFixed(2); }
+      if(m.kind==="dd"){ m._liveClose=closes; m.level=d.price; m.ath=Math.max.apply(null,closes.map(c=>c.v));
+        if(d.intra&&d.intra.length){ const _a=m.ath; m._intraDD=d.intra.map(c=>({t:new Date(c.t),v:(c.v/_a-1)*100})); } }
+      else { m._live=closes; m.level=d.price; if(typeof d.changePct==="number") m.day=+d.changePct.toFixed(2);
+        if(d.intra&&d.intra.length) m._intra=d.intra.map(c=>({t:new Date(c.t),v:c.v})); }
       IS_LIVE=true;
     }
     const sm=find("sectors");
