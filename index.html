@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>달동이 경제모니터링</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+<style>
+  :root{
+    --bg:#070a11; --card:#111725; --card-2:#0e1420;
+    --border:rgba(255,255,255,.07); --border-soft:rgba(255,255,255,.045);
+    --text:#e7eaf2; --dim:#8b93a7; --faint:#59616f;
+    --green:#34d399; --amber:#fbbf24; --red:#f87171; --blue:#5b9bff;
+    --grid:rgba(255,255,255,.055);
+    --zone-strong:rgba(52,211,153,.055); --zone-watch:rgba(251,191,36,.05);
+    --zone-corr:rgba(251,191,36,.09); --zone-bear:rgba(248,113,113,.10);
+    --font:"Pretendard Variable",Pretendard,-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic","Noto Sans KR",system-ui,sans-serif;
+    --mono:ui-monospace,SFMono-Regular,Menlo,"Roboto Mono",monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:
+      radial-gradient(1100px 520px at 12% -8%, #141d2e 0%, transparent 55%),
+      radial-gradient(900px 480px at 100% 0%, #181320 0%, transparent 50%),
+      var(--bg);
+    color:var(--text); font-family:var(--font);
+    font-feature-settings:"tnum" 1; -webkit-font-smoothing:antialiased;
+    line-height:1.5; min-height:100vh;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:26px 18px 72px}
+
+  /* header */
+  header.top{display:flex;flex-wrap:wrap;align-items:center;gap:14px 22px;padding-bottom:18px;margin-bottom:20px;border-bottom:1px solid var(--border-soft)}
+  .brand{display:flex;align-items:center;gap:13px}
+  .logo{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;font-weight:900;font-size:19px;
+    background:linear-gradient(135deg,#1c2740,#0e1626);border:1px solid var(--border);color:#f2d27a;letter-spacing:-.03em}
+  .brand h1{font-size:19px;font-weight:800;letter-spacing:-.02em;margin:0}
+  .brand .sub{font-size:11px;color:var(--faint);letter-spacing:.14em;font-weight:600;margin-top:2px}
+  .top-right{margin-left:auto;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+  .live-pill{display:inline-flex;align-items:center;gap:7px;font-size:11px;font-weight:700;color:var(--amber);
+    background:rgba(251,191,36,.1);border:1px solid rgba(251,191,36,.22);padding:5px 11px;border-radius:999px}
+  .live-pill .dot{width:7px;height:7px;border-radius:50%;background:var(--amber);animation:pulse 1.8s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+  .socials{display:flex;gap:8px;flex-wrap:wrap}
+  .socials a{font-size:11px;color:var(--dim);text-decoration:none;border:1px solid var(--border);
+    padding:5px 9px;border-radius:8px;transition:.15s;display:inline-flex;align-items:center;gap:5px}
+  .socials a svg{width:14px;height:14px;flex:0 0 auto}
+  .socials a:hover{color:var(--text);border-color:rgba(255,255,255,.18)}
+
+  /* summary hero strip */
+  .hero{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:26px}
+  .htile{background:linear-gradient(180deg,var(--card),var(--card-2));border:1px solid var(--border);border-radius:13px;padding:12px 13px}
+  .htile .hk{font-size:11px;color:var(--dim);font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+  .htile .hk .sw{width:7px;height:7px;border-radius:2px}
+  .htile .hv{font-size:18px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.1}
+  .htile .hc{font-size:11px;font-weight:600;margin-top:3px;font-variant-numeric:tabular-nums}
+  .up{color:var(--green)} .down{color:var(--red)} .flat{color:var(--dim)}
+
+  /* group */
+  .group{margin-bottom:30px}
+  .group-title{font-size:13px;font-weight:800;color:var(--dim);letter-spacing:.02em;margin:0 0 13px;
+    display:flex;align-items:center;gap:8px}
+  .group-title .em{font-size:15px}
+  .group-title .rule{flex:1;height:1px;background:var(--border-soft)}
+
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+  .grid.two{grid-template-columns:repeat(2,1fr)}
+
+  .card{background:linear-gradient(180deg,var(--card),var(--card-2));border:1px solid var(--border);
+    border-radius:15px;padding:16px 16px 14px;display:flex;flex-direction:column;
+    opacity:0;transform:translateY(8px);animation:rise .45s cubic-bezier(.2,.7,.3,1) forwards}
+  @keyframes rise{to{opacity:1;transform:none}}
+  .card.span2{grid-column:span 2}
+  .card.span3{grid-column:1/-1}
+
+  .chead{display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:10px}
+  .cname{display:flex;align-items:center;gap:8px}
+  .cname .sw{width:9px;height:9px;border-radius:3px;flex:0 0 auto}
+  .cname .nm{font-size:14.5px;font-weight:700;letter-spacing:-.01em}
+  .cname .tk{font-size:10.5px;color:var(--faint);font-weight:500;display:block;margin-top:1px}
+
+  .range{display:inline-flex;background:var(--card-2);border:1px solid var(--border);border-radius:8px;padding:2px;gap:2px}
+  .range button{font-family:inherit;font-size:10.5px;font-weight:700;color:var(--dim);background:transparent;
+    border:0;border-radius:6px;padding:3px 7px;cursor:pointer;transition:.15s}
+  .range button:hover{color:var(--text)}
+  .range button[aria-pressed="true"]{background:rgba(255,255,255,.09);color:var(--text)}
+  .range button:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+
+  .chart{width:100%;margin:2px 0 10px}
+  .chart svg{display:block;width:100%;height:auto}
+  .axis-label{fill:var(--faint);font-size:9px;font-family:var(--font)}
+
+  .stat{display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-top:auto}
+  .big{display:flex;flex-direction:column}
+  .big .l{font-size:10.5px;color:var(--faint);margin-bottom:2px}
+  .big .v{font-size:26px;font-weight:800;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums}
+  .big .v.small{font-size:22px}
+  .chg{font-size:12px;font-weight:700;font-variant-numeric:tabular-nums}
+  .badge{align-self:flex-end;font-size:11px;font-weight:700;padding:4px 10px;border-radius:999px;white-space:nowrap}
+
+  .explain{margin-top:12px;padding-top:11px;border-top:1px solid var(--border-soft);font-size:11.5px;color:var(--dim);line-height:1.55}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .chip{font-size:10.5px;font-weight:600;padding:3px 8px;border-radius:7px;border:1px solid var(--border);color:var(--dim)}
+  .chip b{color:var(--text)}
+
+  /* drawdown explainer (shared) */
+  .dd-explain{margin-top:14px;background:var(--card-2);border:1px solid var(--border);border-radius:15px;padding:18px 20px}
+  .dd-explain h3{font-size:14px;font-weight:700;margin:0 0 6px;display:flex;align-items:center;gap:8px}
+  .dd-explain>p{margin:0 0 14px;color:var(--dim);font-size:12.5px}
+  .dd-explain>p b{color:var(--text)}
+  .zones{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+  .zone{border-radius:11px;padding:12px 14px;border:1px solid var(--border)}
+  .zone.s{background:linear-gradient(180deg,rgba(52,211,153,.1),rgba(52,211,153,.02))}
+  .zone.c{background:linear-gradient(180deg,rgba(251,191,36,.1),rgba(251,191,36,.02))}
+  .zone.b{background:linear-gradient(180deg,rgba(248,113,113,.11),rgba(248,113,113,.02))}
+  .zone .zh{font-weight:800;font-size:14px;margin-bottom:2px;display:flex;align-items:center;gap:7px}
+  .zone .zd{font-size:11.5px;color:var(--dim)}
+  .zone.s .zh{color:var(--green)} .zone.c .zh{color:var(--amber)} .zone.b .zh{color:var(--red)}
+
+  /* gauge */
+  .gauge-wrap{display:flex;flex-direction:column;align-items:center;gap:6px;margin:6px 0 4px}
+  .gauge-val{font-size:34px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+  .gauge-lab{font-size:12px;font-weight:700}
+  .fg-hist{display:flex;justify-content:space-between;gap:8px;margin-top:10px;padding-top:11px;border-top:1px solid var(--border-soft)}
+  .fg-hist .c{display:flex;flex-direction:column;align-items:center;gap:3px;flex:1}
+  .fg-hist .c .t{font-size:10px;color:var(--faint)}
+  .fg-hist .c .n{font-size:15px;font-weight:800;font-variant-numeric:tabular-nums}
+
+  /* option tiles */
+  .otiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .otile{background:var(--card-2);border:1px solid var(--border);border-radius:11px;padding:12px 13px;text-align:center}
+  .otile .ok{font-size:11px;color:var(--dim);font-weight:700;margin-bottom:5px}
+  .otile .ov{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums}
+  .otile .od{font-size:10px;color:var(--faint);margin-top:3px}
+
+  /* heatmap */
+  .heat{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+  .hcell{border-radius:10px;padding:12px 8px;text-align:center;border:1px solid var(--border)}
+  .hcell .hn{font-size:11px;font-weight:600;color:var(--text);opacity:.92}
+  .hcell .hp{font-size:15px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:3px}
+
+  footer{margin-top:30px;color:var(--faint);font-size:12px;line-height:1.65}
+  footer .note{background:var(--card-2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:12px;color:var(--dim)}
+  footer .note b{color:var(--text)}
+  footer code{background:rgba(255,255,255,.06);padding:1px 6px;border-radius:5px;font-family:var(--mono);font-size:11.5px;color:#cdd4e2}
+  footer .sig{color:var(--text);font-weight:600}
+
+  @media (max-width:960px){
+    .hero{grid-template-columns:repeat(3,1fr)}
+    .grid,.grid.two{grid-template-columns:1fr}
+    .card.span2,.card.span3{grid-column:auto}
+    .zones{grid-template-columns:1fr}
+    .otiles{grid-template-columns:repeat(2,1fr)}
+    .heat{grid-template-columns:repeat(3,1fr)}
+  }
+  @media (max-width:520px){ .hero{grid-template-columns:repeat(2,1fr)} }
+  @media (prefers-reduced-motion:reduce){ .card{animation:none;opacity:1;transform:none} .live-pill .dot{animation:none} }
+  /* recent posts feed */
+  .group-title .handle{font-size:11px;color:var(--dim);text-decoration:none;border:1px solid var(--border);padding:4px 9px;border-radius:8px;font-weight:600}
+  .group-title .handle:hover{color:var(--text)}
+  .posts{background:linear-gradient(180deg,var(--card),var(--card-2));border:1px solid var(--border);border-radius:15px;padding:16px 18px}
+  .posts-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .posts-head .pt{font-size:14px;font-weight:700}
+  .pgo{font-size:11.5px;color:var(--blue);text-decoration:none;white-space:nowrap;font-weight:600}
+  .pgo:hover{text-decoration:underline}
+  .posts-sub{font-size:11.5px;color:var(--faint);margin-top:2px}
+  .post{display:flex;align-items:flex-start;gap:11px;padding:13px 0;border-top:1px solid var(--border-soft);margin-top:10px}
+  .post:first-of-type{margin-top:12px}
+  .pdot{width:26px;height:26px;border-radius:8px;background:var(--card-2);border:1px solid var(--border);display:grid;place-items:center;font-size:12px;flex:0 0 auto}
+  .pbody{flex:1;min-width:0}
+  .prow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .ptime{font-size:11.5px;color:var(--dim);font-variant-numeric:tabular-nums}
+  .plink{display:block;margin-top:4px;font-size:13px;color:#a9c4ff;text-decoration:none;word-break:break-word}
+  .plink:hover{text-decoration:underline}
+
+  /* economic calendar */
+  .econ{background:linear-gradient(180deg,var(--card),var(--card-2));border:1px solid var(--border);border-radius:15px;padding:4px 4px 6px}
+  .econ-cap{font-size:11px;color:var(--faint);padding:11px 14px 7px}
+  .econ-row{display:flex;align-items:center;gap:12px;padding:11px 14px;border-top:1px solid var(--border-soft)}
+  .ec-date{width:52px;flex:0 0 auto;font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums;line-height:1.25}
+  .ec-date b{display:block;font-size:12.5px;color:var(--text);font-weight:700}
+  .ec-main{flex:1;min-width:0}
+  .ec-name{font-size:13px;font-weight:600;display:flex;align-items:center;gap:7px}
+  .ec-imp{width:7px;height:7px;border-radius:50%;flex:0 0 auto}
+  .imp3{background:var(--red)} .imp2{background:var(--amber)} .imp1{background:var(--faint)}
+  .ec-vals{font-size:11px;color:var(--faint);margin-top:2px;font-variant-numeric:tabular-nums}
+  .ec-act{flex:0 0 auto;text-align:right;font-size:14px;font-weight:800;font-variant-numeric:tabular-nums;min-width:72px}
+  .tone-good{color:var(--green)} .tone-bad{color:var(--red)} .tone-neutral{color:var(--text)}
+  .ec-up{flex:0 0 auto;font-size:11px;font-weight:700;color:var(--dim);border:1px solid var(--border);padding:4px 9px;border-radius:999px;white-space:nowrap}
+
+  /* clickable cards + detail modal */
+  .clickable{cursor:pointer;transition:border-color .15s}
+  .clickable:hover{border-color:rgba(255,255,255,.17)}
+  .clickable:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+  .why-btn{margin-top:12px;width:100%;display:flex;align-items:center;justify-content:center;gap:6px;
+    font-family:inherit;font-size:12px;font-weight:700;color:#a9c4ff;
+    background:rgba(91,155,255,.1);border:1px solid rgba(91,155,255,.28);border-radius:9px;
+    padding:8px 10px;cursor:pointer;transition:.15s}
+  .why-btn:hover{background:rgba(91,155,255,.18);border-color:rgba(91,155,255,.46);color:#c9dbff}
+  .why-btn:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+
+  .modal{position:fixed;inset:0;z-index:100;display:none;align-items:center;justify-content:center;padding:20px}
+  .modal.open{display:flex}
+  .mbackdrop{position:absolute;inset:0;background:rgba(4,7,12,.72);backdrop-filter:blur(3px)}
+  .mpanel{position:relative;max-width:540px;width:100%;max-height:86vh;overflow:auto;
+    background:linear-gradient(180deg,#131a2a,#0e1420);border:1px solid var(--border);border-radius:18px;
+    padding:22px 22px 20px;box-shadow:0 24px 60px rgba(0,0,0,.5);animation:pop .22s cubic-bezier(.2,.8,.3,1)}
+  @keyframes pop{from{opacity:0;transform:translateY(12px) scale(.98)}to{opacity:1;transform:none}}
+  .mclose{position:absolute;top:14px;right:14px;width:30px;height:30px;border-radius:9px;border:1px solid var(--border);
+    background:var(--card-2);color:var(--dim);font-size:13px;cursor:pointer;line-height:1}
+  .mclose:hover{color:var(--text)}
+  .mhead{display:flex;align-items:center;gap:11px;margin-bottom:16px;padding-right:34px}
+  .mhead .sw{width:11px;height:11px;border-radius:3px;flex:0 0 auto}
+  .mname{font-size:18px;font-weight:800;letter-spacing:-.02em}
+  .mtk{font-size:11px;color:var(--faint);margin-top:1px}
+  .mnow{margin-left:auto;text-align:right;display:flex;flex-direction:column;gap:2px}
+  .mnow-v{font-size:17px;font-weight:800;font-variant-numeric:tabular-nums}
+  .mnow-t{font-size:11px;font-weight:700}
+  .msec{margin-bottom:14px}
+  .mlbl{font-size:11px;font-weight:800;letter-spacing:.05em;color:var(--blue);margin-bottom:5px}
+  .msec p{margin:0;font-size:13.5px;color:var(--text);line-height:1.62;opacity:.92}
+  .mpanel .chips{margin-top:4px}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <div class="logo"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></div>
+      <div>
+        <h1>달동이 경제모니터링</h1>
+        <div class="sub">MARKET MONITOR</div>
+      </div>
+    </div>
+    <div class="top-right">
+      <span class="live-pill"><span class="dot"></span> 샘플 · 2026-07-16</span>
+      <div class="socials">
+        <a href="https://linktw.in/dteogV" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="currentColor" fill-rule="evenodd" style="color:#ff3d3d" aria-hidden="true"><path d="M23 7.5a3 3 0 0 0-2.1-2.1C19 4.9 12 4.9 12 4.9s-7 0-8.9.5A3 3 0 0 0 1 7.5 31 31 0 0 0 .5 12 31 31 0 0 0 1 16.5a3 3 0 0 0 2.1 2.1c1.9.5 8.9.5 8.9.5s7 0 8.9-.5A3 3 0 0 0 23 16.5 31 31 0 0 0 23.5 12 31 31 0 0 0 23 7.5ZM9.8 15.3V8.7l5.7 3.3-5.7 3.3Z"/></svg>YouTube</a>
+        <a href="https://www.instagram.com/daldong_222/" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="url(#igg)" stroke-width="2" aria-hidden="true"><defs><linearGradient id="igg" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#feda75"/><stop offset=".4" stop-color="#fa7e1e"/><stop offset=".7" stop-color="#d62976"/><stop offset="1" stop-color="#962fbf"/></linearGradient></defs><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.8" r="1.1" fill="url(#igg)" stroke="none"/></svg>Instagram</a>
+        <a href="https://tin-tornado-973.notion.site/37b0db64fd02809eb66ad494bbac6ffe?source=copy_link" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" style="color:#34d399" aria-hidden="true"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4"/><path d="M9 12.5h6M9 16h6"/></svg>달동이 자료방</a>
+        <a href="https://www.threads.com/@daldong_222" target="_blank" rel="noopener"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" style="color:#f2f4fa" aria-hidden="true"><path d="M12.4 21C7.5 21 4.5 17.6 4.5 12S7.6 3 12.4 3c3.6 0 6 1.9 6.9 4.6"/><path d="M16 12.4c.3 2.3-1 4.1-3.4 4.3-1.8.1-3.1-.7-3.2-2.2-.1-1.4 1.1-2.4 3-2.5 2.5-.2 4.3.9 4.7 3.2.5 2.7-1.4 4.8-4.5 5.1"/></svg>Threads</a>
+      </div>
+    </div>
+  </header>
+
+  <!-- 요약 스트립 -->
+  <div class="hero" id="hero"></div>
+
+  <!-- 모듈 그룹들 -->
+  <div id="groups"></div>
+
+  <div id="modal" class="modal" role="dialog" aria-modal="true" aria-label="지표 설명">
+    <div class="mbackdrop" data-close></div>
+    <div class="mpanel"></div>
+  </div>
+
+  <footer>
+    <div class="note">
+      <b>실시간으로 바꾸려면?</b> 지금은 2026-07-16 시세 기준 샘플이에요. 실시간은 Vercel 같은 곳에 서버(서버리스 API)를 두고, 거기서 <b>FRED</b>(무료 API 키)와 <b>Yahoo Finance</b>를 대신 호출해 프론트로 넘기면 됩니다(브라우저 직접 호출은 CORS로 막힘). 코드 안 <code>MODULES</code> 설정값과 <code>loadLiveData()</code>만 채우면 낙폭 계산·차트·판정·요약은 그대로 돌아갑니다.
+    </div>
+    <div>데이터: 예시 스냅샷(FRED · Yahoo Finance 지표를 2026-07-16 기준으로 구성) · <span class="sig">개인 견해, 투자 권유 아닙니다.</span></div>
+  </footer>
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+   달동 마켓 대시보드 — config-driven
+   실시간 연동: MODULES[].level / .ath / .day 값을 서버에서 받아 갱신 후 build()
+   ============================================================ */
+
+const N = 261, STEP = 7;                 // 주간 5년치
+const NOW = new Date("2026-07-16T00:00:00");
+const mAgoOf = i => ((N-1-i)*STEP)/30.44;
+
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function fmt(n,d){return Number(n).toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d});}
+function fmtDate(t){return `${String(t.getFullYear()).slice(2)}.${String(t.getMonth()+1).padStart(2,"0")}`;}
+const dateOf = i => new Date(NOW.getTime()-(N-1-i)*STEP*864e5);
+
+/* 가격형 시계열: 제어점 [mAgo,value] 사이 로그보간 + 노이즈 */
+function genPrice(cfg){
+  if(cfg._live&&cfg._live.length) return cfg._live;
+  const rnd=mulberry32(cfg.seed), pts=[], cps=cfg.points.slice().sort((a,b)=>b[0]-a[0]); // 오래된→최근
+  let n1=0;
+  for(let i=0;i<N;i++){
+    const m=mAgoOf(i);
+    // 보간
+    let v;
+    if(m>=cps[0][0]) v=cps[0][1];
+    else if(m<=cps[cps.length-1][0]) v=cps[cps.length-1][1];
+    else{
+      for(let k=0;k<cps.length-1;k++){
+        if(m<=cps[k][0] && m>=cps[k+1][0]){
+          const t=(cps[k][0]-m)/(cps[k][0]-cps[k+1][0]);
+          v = cfg.linear ? cps[k][1]*(1-t)+cps[k+1][1]*t
+                         : Math.exp(Math.log(cps[k][1])*(1-t)+Math.log(cps[k+1][1])*t);
+          break;
+        }
+      }
+    }
+    n1=n1*0.8+(rnd()-0.5);
+    if(cfg.linear) v += n1*(cfg.noiseAbs||0.1);
+    else v*= (1 + n1*(cfg.vol||0.012));
+    pts.push({t:dateOf(i), v});
+  }
+  pts[N-1].v=cfg.level;                    // 끝값 고정
+  return pts;
+}
+
+/* 낙폭형 시계열: 하향 가우시안 이벤트 합, 값 ≤ 0, 끝값 = 목표낙폭 */
+function genDrawdown(cfg){
+  if(cfg._liveClose&&cfg._liveClose.length){ let mx=-Infinity; return cfg._liveClose.map(p=>{ mx=Math.max(mx,p.v); return {t:p.t,v:(p.v/mx-1)*100}; }); }
+  const rnd=mulberry32(cfg.seed), pts=[]; let n1=0;
+  const target=(cfg.level/cfg.ath-1)*100;
+  for(let i=0;i<N;i++){
+    const m=mAgoOf(i); let dd=0;
+    for(const [c,dep,w] of cfg.dips) dd+=dep*Math.exp(-((m-c)*(m-c))/(2*w*w));
+    n1=n1*0.82+(rnd()-0.5)*0.9; dd+=n1*0.7; dd=Math.min(0,dd);
+    pts.push({t:dateOf(i), v:dd});
+  }
+  const bl=10; for(let k=0;k<bl;k++){const i=N-1-k,w=1-k/bl; pts[i].v=pts[i].v*(1-w)+target*w;}
+  pts[N-1].v=target;
+  return pts;
+}
+
+/* 통합 라인 차트 */
+function chartSVG(slice, opts){
+  const W=600,H=168,padT=12,padB=20,padL=opts.padL||36,padR=8;
+  const pW=W-padL-padR,pH=H-padT-padB,n=slice.length;
+  let mn=Infinity,mx=-Infinity; for(const p of slice){if(p.v<mn)mn=p.v; if(p.v>mx)mx=p.v;}
+  let yBot,yTop;
+  if(opts.drawdown){ yTop=0.6; yBot=Math.min(-5,Math.floor((mn-1.2)/5)*5); }
+  else{
+    const pad=(mx-mn)*0.12||Math.abs(mx)*0.05||1;
+    yTop=mx+pad; yBot=mn-pad;
+    if(opts.zeroline && yBot>0) yBot=Math.min(0,yBot);
+    if(opts.zeroline && yBot>-0.05 && mn>=0) yBot=0;
+  }
+  const X=i=>padL+(i/(n-1))*pW, Y=v=>padT+((yTop-v)/(yTop-yBot))*pH;
+
+  let bands="";
+  if(opts.drawdown){
+    for(const [hi,lo,f] of [[0,-5,"var(--zone-strong)"],[-5,-10,"var(--zone-watch)"],[-10,-20,"var(--zone-corr)"],[-20,-100,"var(--zone-bear)"]]){
+      const y1=Y(Math.min(hi,yTop)),y2=Y(Math.max(lo,yBot)); if(y2<=y1)continue;
+      bands+=`<rect x="${padL}" y="${y1.toFixed(1)}" width="${pW}" height="${(y2-y1).toFixed(1)}" fill="${f}"/>`;
+    }
+  }
+  let grid="";
+  const gl = opts.drawdown ? [0,-5,-10,-20,-30,-40,-50] : opts.gridvals || [];
+  for(const lv of gl){ if(lv>yTop||lv<yBot)continue; const y=Y(lv);
+    grid+=`<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="var(--grid)" stroke-width="1" ${lv===0?'':'stroke-dasharray="3 4"'}/>`;
+    grid+=`<text class="axis-label" x="${padL-6}" y="${(y+3).toFixed(1)}" text-anchor="end">${opts.fmtY?opts.fmtY(lv):lv+"%"}</text>`;
+  }
+  // 임계선
+  if(opts.thresholds) for(const th of opts.thresholds){ if(th.y>yTop||th.y<yBot)continue; const y=Y(th.y);
+    grid+=`<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W-padR}" y2="${y.toFixed(1)}" stroke="${th.c}" stroke-width="1" stroke-dasharray="4 4" opacity=".55"/>`;
+    if(th.label) grid+=`<text class="axis-label" x="${W-padR}" y="${(y-3).toFixed(1)}" text-anchor="end" fill="${th.c}">${th.label}</text>`;
+  }
+  // 자동 y라벨(비낙폭)
+  if(!opts.drawdown && !gl.length){
+    for(const lv of [yTop, (yTop+yBot)/2, yBot]){ const y=Y(lv);
+      grid+=`<text class="axis-label" x="${padL-6}" y="${(y+3).toFixed(1)}" text-anchor="end">${opts.fmtY?opts.fmtY(lv):fmt(lv,opts.yd??0)}</text>`;
+    }
+  }
+  let line=""; for(let i=0;i<n;i++) line+=(i?"L":"M")+X(i).toFixed(1)+" "+Y(slice[i].v).toFixed(1)+" ";
+  const area=line+`L${X(n-1).toFixed(1)} ${Y(yBot).toFixed(1)} L${X(0).toFixed(1)} ${Y(yBot).toFixed(1)} Z`;
+  const idxs=[0,Math.floor(n/2),n-1]; let xs="";
+  for(const i of idxs){const a=i===0?"start":(i===n-1?"end":"middle");
+    xs+=`<text class="axis-label" x="${X(i).toFixed(1)}" y="${H-6}" text-anchor="${a}">${fmtDate(slice[i].t)}</text>`;}
+  const gid="g"+Math.random().toString(36).slice(2,7), ex=X(n-1),ey=Y(slice[n-1].v),c=opts.color;
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${opts.aria||''}">
+    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${c}" stop-opacity=".26"/><stop offset="100%" stop-color="${c}" stop-opacity="0"/>
+    </linearGradient></defs>
+    ${bands}${grid}
+    <path d="${area}" fill="url(#${gid})"/>
+    <path d="${line}" fill="none" stroke="${c}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${ex.toFixed(1)}" cy="${ey.toFixed(1)}" r="3.2" fill="${c}"/>
+    <circle cx="${ex.toFixed(1)}" cy="${ey.toFixed(1)}" r="6.2" fill="${c}" opacity=".18"/>
+    ${xs}</svg>`;
+}
+
+/* 낙폭 판정 */
+function verdict(dd){
+  if(dd>=-5)  return {tag:"강세장",   c:"var(--green)", bg:"rgba(52,211,153,.14)"};
+  if(dd>=-10) return {tag:"강세·주의", c:"var(--amber)", bg:"rgba(251,191,36,.13)"};
+  if(dd>=-20) return {tag:"조정 구간", c:"var(--amber)", bg:"rgba(251,191,36,.13)"};
+  return {tag:"약세장", c:"var(--red)", bg:"rgba(248,113,113,.14)"};
+}
+const unitStr=(v,m)=> (m.pre||"")+fmt(v,m.decimals)+(m.suf||"");
+
+/* ============================================================
+   모듈 정의  (실제 2026-07-16 시세 기준 · 신흥국/옵션 일부 예시값)
+   ============================================================ */
+const RANGE_STD=[["1Y",1],["2Y",2],["3Y",3]];
+const RANGE_MAC=[["1Y",1],["3Y",3],["5Y",5]];
+
+const GROUPS = [
+ { title:"글로벌 자산", em:"📊", cols:2, mods:[
+   {id:"spx",kind:"dd",name:"S&P 500",tk:"^GSPC",color:"#5b9bff",level:7534,ath:7610,pre:"",suf:" pt",decimals:0,seed:11,
+     dips:[[42,-13,4],[30,-12,3.6],[20,-14,3.2],[11,-8,3],[4.2,-16,2.1]],ranges:RANGE_STD,
+     ex:"미국 대형주 대표 지수. 전고점 대비 낙폭으로 강세/조정/약세를 판단해요."},
+   {id:"ndx",kind:"dd",name:"나스닥",tk:"^IXIC",color:"#a78bfa",level:25882,ath:27102,pre:"",suf:" pt",decimals:0,seed:29,
+     dips:[[41,-18,3.6],[29,-16,3.2],[19,-20,3],[10,-12,2.8],[4,-24,2.2]],ranges:RANGE_STD,
+     ex:"기술·성장주 비중이 커서 금리·유동성에 더 민감하게 출렁여요."},
+   {id:"gold",kind:"px",name:"금 (Gold)",tk:"GC=F",color:"#f0b429",level:4008,ath:4519,pre:"$",suf:"",decimals:0,day:-1.06,seed:47,vol:.02,
+     points:[[54,1980],[36,2350],[18,3050],[6,4519],[2,4300],[0,4008]],ranges:RANGE_STD,
+     ex:"안전자산 대표. 달러·실질금리와 반대로 움직여요. 지금은 ATH 대비 약 -11%로 조정 구간.",
+     chips:[["강세","불확실성↑·달러약세·인플레 헤지"],["약세","달러강세·실질금리↑·위험선호"]]},
+   {id:"btc",kind:"px",name:"비트코인",tk:"BTC-USD",color:"#f59e42",level:64614,ath:122000,pre:"$",suf:"",decimals:0,day:-1.10,seed:73,vol:.03,
+     points:[[54,26000],[30,68000],[12,122000],[6,92000],[2,70000],[0,64614]],ranges:RANGE_STD,
+     ex:"유동성에 가장 민감한 위험자산. 작년 7월 ATH($122k) 대비 약 -47%로 사실상 약세 국면.",
+     chips:[["강세","위험선호·유동성 확대·기관 수요"],["급락","위험회피·레버리지 청산 주의"]]},
+ ]},
+
+ { title:"한국 자산", em:"🇰🇷", cols:2, mods:[
+   {id:"kospi",kind:"dd",name:"코스피",tk:"^KS11",color:"#5b9bff",level:6820.6,ath:7290,pre:"",suf:"",decimals:2,seed:53,
+     dips:[[40,-16,3.4],[26,-14,3],[14,-11,2.8],[0.4,-9,0.9]],ranges:RANGE_STD,
+     ex:"S&P와 나란히 보면 한국 증시의 상대 강도가 보여요. 7/16 -6.4% 급락으로 조정 진입."},
+   {id:"kosdaq",kind:"dd",name:"코스닥",tk:"^KQ11",color:"#a78bfa",level:791.84,ath:850,pre:"",suf:"",decimals:2,seed:59,
+     dips:[[38,-20,3.4],[24,-16,3],[12,-13,2.8],[0.4,-8,0.9]],ranges:RANGE_STD,
+     ex:"IT·바이오 등 성장주 비중이 커서 금리·유동성 변화에 더 크게 반응해요."},
+   {id:"sec",kind:"px",name:"삼성전자",tk:"005930",color:"#5b9bff",level:255000,ath:0,pre:"",suf:"원",decimals:0,day:-8.77,seed:61,vol:.02,
+     points:[[54,70000],[30,130000],[12,240000],[3,300000],[0.5,279500],[0,255000]],ranges:RANGE_STD,
+     ex:"코스피 시총 20%+. 반도체 업황·글로벌 IT 수요·환율에 민감한 한국 증시 바로미터.",
+     chips:[["상승","반도체 업황↑·외국인 매수·원화 강세"],["하락","수요 둔화·외국인 매도·원화 약세"]]},
+   {id:"krw",kind:"px",name:"원달러 환율",tk:"KRW=X",color:"#f0b429",level:1480.4,ath:0,pre:"",suf:"원",decimals:1,day:-0.29,seed:67,vol:.008,
+     points:[[54,1300],[36,1330],[18,1390],[6,1450],[0,1480.4]],ranges:RANGE_STD,
+     ex:"환율 급등 = 원화 약세 = 외국인 자금유출·수입물가↑. 개미에게 직접 영향을 주는 핵심 지표.",
+     chips:[["급등(원화약세)","자금유출·수입물가↑·달러강세"],["하락(원화강세)","자금유입·위험선호"]]},
+ ]},
+
+ { title:"시장 내부", em:"📈", cols:3, mods:[
+   {id:"fg",kind:"gauge",name:"공포 & 탐욕 지수",tk:"CNN FEAR & GREED",color:"#f59e42",level:26,
+     hist:[["현재",26],["1주 전",20],["1개월 전",41],["1년 전",63]],
+     ex:"0=극단적 공포, 100=극단적 탐욕. 지금은 26으로 '공포' 구간 — 역발상 관점에서 볼 자리."},
+   {id:"vix",kind:"px",name:"VIX 변동성",tk:"^VIX",color:"#f87171",level:16.7,pre:"",suf:"",decimals:1,day:6.76,seed:113,vol:.05,
+     points:[[54,18],[40,14],[28,22],[16,15],[8,28],[3,14],[0,16.7]],ranges:RANGE_MAC,
+     thresholds:[{y:20,c:"var(--amber)",label:"20 주의"},{y:30,c:"var(--red)",label:"30 경계"}],
+     ex:"시장의 불안 온도계. 20↓ 안정, 20~30 주의, 30↑ 경계, 40↑ 위기. 지금은 안정 구간.",
+     chips:[["20 미만","위험자산 선호·조용한 장"],["30 이상","패닉·과거 충격 때마다 돌파"]]},
+   {id:"curve",kind:"px",name:"장단기 금리차",tk:"T10Y2Y",color:"#5b9bff",level:0.34,pre:"",suf:"%",decimals:2,day:0,seed:127,vol:.04,
+     points:[[54,-0.5],[40,-0.8],[28,-0.3],[16,0.1],[6,0.25],[0,0.34]],ranges:RANGE_MAC,
+     linear:true, noiseAbs:0.06, zeroline:true, gridvals:[0], fmtY:v=>v.toFixed(1),
+     thresholds:[{y:0,c:"var(--red)",label:"0 = 역전선"}],
+     ex:"10년-2년 금리차. 음수(역전)면 과거 미국 침체 전 매번 나온 신호. 지금은 +0.34%로 정상.",
+     chips:[["양수(+)","경기 확장 기대·정상"],["음수(-)","역전 · 침체 선행신호(시차 12~24개월)"]]},
+ ]},
+
+ { title:"매크로", em:"🌐", cols:3, mods:[
+   {id:"dxy",kind:"px",name:"달러인덱스",tk:"DXY",color:"#34d399",level:100.5,pre:"",suf:"",decimals:2,day:0.25,seed:131,vol:.01,
+     points:[[54,103],[36,106],[20,101],[8,101.4],[0,100.5]],ranges:RANGE_MAC,thresholds:[{y:100,c:"var(--dim)",label:"100"}],
+     ex:"6개 통화 대비 달러 강도. 강세=신흥국·원자재 압박, 약세=위험자산 선호 환경.",
+     chips:[["강세↑","신흥국 통화·원자재 약세 압력"],["약세↓","위험자산 선호·자금유입"]]},
+   {id:"jpy",kind:"px",name:"달러/엔",tk:"JPY=X",color:"#a78bfa",level:161.0,pre:"",suf:"",decimals:1,day:0.18,seed:137,vol:.012,
+     points:[[54,138],[36,150],[18,157],[6,159],[0,161]],ranges:RANGE_STD,
+     ex:"엔 약세(환율↑)=일본 수출 유리·한국 경쟁 불리. 엔은 안전자산, 위기 때 급강세.",
+     chips:[["엔 약세↑","한국 경쟁기업 불리·위험선호"],["엔 강세↓","안전자산 수요·위험회피"]]},
+   {id:"us10y",kind:"px",name:"10년물 금리",tk:"DGS10",color:"#f0b429",level:4.56,pre:"",suf:"%",decimals:2,day:0,seed:139,vol:.02,
+     points:[[54,3.8],[36,4.2],[20,4.0],[8,4.4],[2,4.62],[0,4.56]],ranges:RANGE_MAC,
+     ex:"미국 장기금리 기준. 상승=성장주 부담·채권가격↓, 하락=채권·성장주 유리.",
+     chips:[["금리↑","성장주 밸류 압박·채권가↓"],["금리↓","채권가↑·성장주 유리"]]},
+   {id:"wti",kind:"px",name:"WTI 원유",tk:"CL=F",color:"#f87171",level:79.5,pre:"$",suf:"",decimals:1,day:0.91,seed:149,vol:.025,
+     points:[[54,75],[36,82],[20,70],[8,66],[2,72],[0,79.5]],ranges:RANGE_MAC,
+     ex:"경기 선행 + 인플레 핵심변수. 유가↑=긴축 장기화, 유가↓=물가 안정 but 경기둔화 신호일 수도.",
+     chips:[["유가↑","인플레 압력·연준 긴축 장기화"],["유가↓","물가 안정·금리인하 여지"]]},
+   {id:"copper",kind:"px",name:"구리",tk:"HG=F",color:"#e0895a",level:6.29,pre:"$",suf:"",decimals:2,day:0.06,seed:151,vol:.02,
+     points:[[54,3.8],[36,4.3],[18,5.0],[6,6.0],[0,6.29]],ranges:RANGE_STD,
+     ex:"'닥터 코퍼'라 불리는 경기 선행지표. 한국 수출과 상관관계가 높아요.",
+     chips:[["상승","경기 회복 기대·한국 수출 긍정"],["하락","경기 둔화·중국 수요 감소"]]},
+   {id:"m2",kind:"px",name:"M2 통화량",tk:"M2SL",color:"#5b9bff",level:22150,pre:"$",suf:"B",decimals:0,day:0,seed:157,vol:.004,
+     points:[[54,20800],[36,20600],[20,21200],[8,21800],[0,22150]],ranges:RANGE_MAC,
+     ex:"광의 통화량. 늘면 자산가격 상승 압력, 줄면 역사적으로 자산 조정과 동반돼요.",
+     chips:[["증가","유동성 확대·자산가격 압력"],["감소","유동성 수축·조정 위험"]]},
+ ]},
+
+ { title:"고용 & 유동성", em:"💧", cols:3, mods:[
+   {id:"unrate",kind:"px",name:"실업률",tk:"UNRATE",color:"#f0b429",level:4.2,pre:"",suf:"%",decimals:1,day:0,seed:163,vol:.01,
+     points:[[54,3.7],[36,3.9],[18,4.1],[6,4.3],[0,4.2]],ranges:RANGE_MAC,
+     ex:"연준의 '최대 고용' 목표. 실업률 급등은 침체 신호이자 금리인하의 핵심 트리거.",
+     chips:[["4% 이하","완전고용 · 인플레 관리 여유"],["급등","고용 냉각 · 연준 피벗 기대"]]},
+   {id:"claims",kind:"px",name:"신규 실업수당",tk:"ICSA",color:"#a78bfa",level:221,pre:"",suf:"K",decimals:0,day:0,seed:167,vol:.03,
+     points:[[54,215],[36,230],[18,245],[6,228],[1,235],[0,221]],ranges:RANGE_STD,
+     ex:"주간 신규 실업수당 청구. 급증하면 고용시장 냉각 신호로 봐요. 최근 2개월래 최저.",
+     chips:[["안정","고용 견조"],["30만+ 급증","고용 냉각·피벗 기대↑"]]},
+   {id:"walcl",kind:"px",name:"연준 총자산",tk:"WALCL",color:"#5b9bff",level:6620,pre:"$",suf:"B",decimals:0,day:0,seed:173,vol:.004,
+     points:[[54,8500],[40,8900],[28,8000],[14,7200],[4,6800],[0,6620]],ranges:RANGE_MAC,
+     ex:"연준 보유자산 총합. QE(매입)=유동성 공급, QT(축소)=회수. 현재 QT로 감소 중.",
+     chips:[["QE(증가)","자산가격 상승 압력"],["QT(감소)","유동성 축소·시장 압박"]]},
+   {id:"reserves",kind:"px",name:"연준 지급준비금",tk:"WRESBAL",color:"#34d399",level:2950,pre:"$",suf:"B",decimals:0,day:0,seed:179,vol:.006,
+     points:[[54,3300],[36,3200],[20,3400],[8,3050],[0,2950]],ranges:RANGE_MAC,
+     ex:"은행이 연준에 맡긴 현금 쿠션. 충분하면 금융시장 안정, 너무 낮으면 자금시장 경색 위험.",
+     chips:[["충분(3조+)","대출 원활·시장 안정"],["감소","QT 진행·경색 주의"]]},
+ ]},
+
+ { title:"옵션 & 변동성", em:"🎯", cols:1, mods:[
+   {id:"opts",kind:"options",name:"옵션 시장의 공포 온도",tk:"CBOE",color:"#a78bfa",
+     tiles:[["SKEW",141,"블랙스완 꼬리위험 · 140↑ 경계"],["VVIX",96,"공포의 변동성 · 130↑ 불안"],["OVX",48,"원유 변동성 · 60↑ 혼란"],["PCR",0.92,"풋/콜 비율 · 1.0↑ 하락베팅"]],
+     ex:"SKEW=꼬리위험, VVIX=공포 자체의 불안정성, OVX=에너지 불확실성, PCR=투자심리 온도계. 동시에 오르면 시장 전반 공포가 확산되는 신호."},
+ ]},
+
+ { title:"섹터 자금 흐름", em:"🔥", cols:1, mods:[
+   {id:"sectors",kind:"heat",name:"S&P500 섹터 등락률",tk:"전일 대비 · 11개 섹터",color:"#5b9bff",
+     data:[["반도체",-2.8],["기술",-1.5],["임의소비재",-0.6],["통신",-0.9],["금융",0.4],["산업재",0.2],["소재",1.1],["헬스케어",0.6],["필수소비재",0.9],["유틸리티",0.7],["부동산",0.3],["에너지",2.1]],
+     ex:"양수=자금 유입, 음수=유출. 7/16은 반도체 급락(마이크론發) vs 에너지·방어주 강세의 '두 개의 시장'."},
+ ]},
+];
+
+/* ============================================================
+   지표별 상세 설명 (탭하면 뜨는 팝업 내용)
+   ============================================================ */
+const DETAIL = {
+ spx:{w:"전 세계 위험자산의 기준점이에요. 미국 대형주 500개를 묶은 지수라, 글로벌 증시가 위로 가는지 아래로 가는지를 여기서 제일 먼저 확인해요.",
+      r:"낙폭 -5% 이내면 강세, -10~20%면 조정(분할매수 관점), -20%↓면 약세라 리스크 관리 우선. 나스닥과 나란히 보면 성장주로 돈이 쏠렸는지도 읽을 수 있어요."},
+ ndx:{w:"기술·성장주의 심장이에요. AI·반도체 사이클과 유동성 변화가 어느 지수보다 여기 먼저, 크게 반영돼요.",
+      r:"S&P보다 낙폭이 깊어지면 성장주에서 돈이 빠지는 중이라는 신호. 금리가 오르는 국면에서 특히 약해집니다."},
+ gold:{w:"위기·인플레·달러 약세의 피난처예요. 주식과 반대로 움직일 때가 많아 포트폴리오 방어용으로 봅니다.",
+      r:"실질금리·달러와 반대로 움직여요. 지금은 ATH 대비 약 -11%로 조정 구간 — 안전자산 수요가 식었다는 뜻이에요."},
+ btc:{w:"유동성의 최전선이에요. 돈이 풀리는지 조이는지를 가장 빠르고 크게 반영하는, 위험선호의 온도계예요.",
+      r:"글로벌 M2가 늘면 빠르게 반응해요. 지금 ATH($122k) 대비 약 -47%면 유동성·심리가 크게 위축됐다는 신호."},
+ kospi:{w:"내 계좌에 가장 직접 영향을 주는 지수예요. S&P와 나란히 보면 '한국만 약한지, 글로벌이 약한지'가 구분돼요.",
+      r:"외국인 수급과 환율에 민감해요. 7/16처럼 하루 -6%가 나오는 건 외국인 이탈 + 환율 급등이 겹칠 때예요."},
+ kosdaq:{w:"성장주·개인 비중이 큰 시장이라, 시장의 과열과 공포가 코스피보다 먼저 드러나요.",
+      r:"금리·유동성에 더 민감해요. 코스피보다 낙폭이 깊으면 위험회피 심리가 강한 국면이라는 뜻."},
+ sec:{w:"코스피 시총 20%+로 사실상 지수 그 자체예요. 반도체 업황의 바로미터라 삼전 하나로 시장 분위기가 읽혀요.",
+      r:"HBM·메모리 사이클, 외국인 수급, 원달러 환율이 핵심 변수. 외국인이 팔고 환율이 오르면 같이 밀립니다."},
+ krw:{w:"환율은 개미한테 '숨은 손익'이에요. 오르면 외국인 자금이 나가고 수입물가가 올라 체감 경기에 직격이에요.",
+      r:"1,400원을 넘으면 부담 구간으로 봐요. 급등은 위험회피 신호, 하락(원화 강세)은 자금 유입·위험선호 신호."},
+ fg:{w:"복잡한 시장 심리를 0~100 숫자 하나로 보여줘요. 남들이 공포일 때가 기회, 탐욕일 때가 조심할 때라는 역발상 지표예요.",
+      r:"25 이하는 극단적 공포(역발상 매수 관점), 75 이상은 극단적 탐욕(과열 경계). 지금은 26으로 공포 구간이에요."},
+ vix:{w:"시장이 예상하는 '앞으로의 출렁임'이에요. 주가가 급락할 때 튀어올라 '공포지수'라고 불려요.",
+      r:"20↓ 안정, 20~30 주의, 30↑ 경계, 40↑ 위기. 2008년 89, 2020년 코로나 때 85까지 치솟았어요. 지금은 안정권."},
+ curve:{w:"미국 침체를 가장 오래 맞혀온 선행지표예요. 은행이 돈 빌려주기를 꺼리는지도 여기서 드러나요.",
+      r:"10년-2년 금리차가 음수(역전)면 과거 침체 전에 매번 등장했어요. 단, 실제 침체까진 보통 12~24개월 시차가 있어요. 지금은 +0.34%로 정상."},
+ dxy:{w:"달러가 세지면 전 세계 돈이 미국으로 빨려가요. 신흥국·원자재·코스피엔 역풍이라 꼭 같이 봐야 해요.",
+      r:"100 위면 달러 강세. 강세일 때 원화·금·비트코인이 눌리고, 약세일 때 위험자산·신흥국이 살아나요."},
+ jpy:{w:"엔은 대표 안전자산이면서 동시에 한국 수출의 경쟁 통화예요. 위기 때 엔이 어디로 가는지가 힌트가 돼요.",
+      r:"환율↑(엔 약세)면 일본 수출기업 유리·한국 불리. 위기가 터지면 엔이 급강세로 돌아서요."},
+ us10y:{w:"세상 거의 모든 자산 가격의 '기준 할인율'이에요. 주식·부동산·채권이 전부 여기에 연동돼요.",
+      r:"오르면 성장주·채권에 부담, 내리면 유리해요. 4.5%대는 높은 편이라 밸류에이션에 압력이 되는 구간."},
+ wti:{w:"물가와 경기를 동시에 흔드는 변수예요. 유가가 오르면 인플레·긴축, 내리면 물가 안정이지만 경기둔화 신호일 수도.",
+      r:"지금은 중동(미-이란) 리스크로 상승 압력. 유가 급등은 연준 긴축 장기화로 이어질 수 있어 주가엔 부담."},
+ copper:{w:"'닥터 코퍼'라 불리는 경기 선행 산업금속이에요. 전기차·반도체·건설에 다 쓰여 한국 수출과 궁합이 좋아요.",
+      r:"오르면 글로벌 경기 회복 기대(한국 수출 긍정), 내리면 둔화 우려. 특히 중국 수요와 함께 봐요."},
+ m2:{w:"시중에 도는 돈의 총량이에요. 개별 뉴스보다 자산가격의 '큰 흐름'을 결정하는 배경 지표예요.",
+      r:"늘면 자산가격 상승 압력, 줄면(역사적으로 드묾) 조정과 동반돼요. 2022~23년 긴축 때 실제로 줄며 자산이 흔들렸어요."},
+ unrate:{w:"연준의 두 목표 중 하나(최대 고용)예요. 실업률 급등은 곧 금리인하의 방아쇠라 시장이 예민하게 봐요.",
+      r:"4% 이하는 완전고용으로 간주. 급등하면 침체 신호이자 연준 피벗(완화) 기대가 커져요."},
+ claims:{w:"실업률보다 빠른 '주간' 고용 온도계예요. 월 1회 실업률이 나오기 전에 고용 냉각을 먼저 감지해요.",
+      r:"급증하면 고용시장이 식는 신호. 보통 30만 건을 넘으면 경계 구간으로 봐요. 최근은 2개월래 최저."},
+ walcl:{w:"연준이 돈을 푸는지(QE) 조이는지(QT)를 보는 창이에요. 자산시장 유동성의 큰 그림이 여기 담겨요.",
+      r:"증가=유동성 공급(자산 상승 압력), 감소=회수(압박). 2022년 약 9조 달러에서 현재 QT로 축소 중."},
+ reserves:{w:"은행 시스템의 '현금 쿠션'이에요. 너무 마르면 자금시장이 삐걱대요(2019년 단기금리 폭등 사례).",
+      r:"3조 달러+면 넉넉해서 대출 원활·시장 안정. 감소하면 경색 주의. 연준도 너무 낮아지면 QT 속도를 줄여요."},
+ opts:{w:"옵션 시장이 먼저 감지하는 '꼬리 공포'예요. 주식시장보다 앞서 경고를 줄 때가 있어 선행지표로 봐요.",
+      r:"SKEW 140↑(블랙스완), VVIX 130↑(공포의 불안정), OVX 60↑(유가 혼란), PCR 1.0↑(하락 베팅 우세)가 동반 상승이면 공포가 번지는 신호."},
+ sectors:{w:"같은 지수 안에서도 돈이 어디로 도는지를 보여줘요. 순환매와 주도 섹터를 여기서 읽어요.",
+      r:"양수=자금 유입, 음수=유출. 방어주(유틸·필수소비)만 초록이면 위험회피 국면, 경기민감주가 초록이면 위험선호 국면."},
+};
+
+function currentReadout(m){
+  if(m.kind==="dd"){const dd=(m.level/m.ath-1)*100,v=verdict(dd);return {val:dd.toFixed(1)+"% · "+unitStr(m.level,m),tag:v.tag,c:v.c};}
+  if(m.kind==="gauge"){const val=m.level,lab=val<25?"극단적 공포":val<45?"공포":val<55?"중립":val<75?"탐욕":"극단적 탐욕",c=val<45?"var(--amber)":val<55?"var(--dim)":"var(--green)";return {val:String(val),tag:lab,c};}
+  if(m.kind==="px"){const d=m.day||0;return {val:unitStr(m.level,m),tag:(d>0?"▲ ":d<0?"▼ ":"")+Math.abs(d).toFixed(2)+"%",c:d>0?"var(--green)":d<0?"var(--red)":"var(--dim)"};}
+  return {val:"",tag:"",c:"var(--dim)"};
+}
+function openModal(m){
+  const det=DETAIL[m.id]||{w:m.ex||"",r:""}, ro=currentReadout(m);
+  const chips=(m.chips||[]).map(c=>`<span class="chip"><b>${c[0]}</b> ${c[1]}</span>`).join("");
+  const mo=document.getElementById("modal");
+  mo.querySelector(".mpanel").innerHTML=`
+    <button class="mclose" aria-label="닫기">✕</button>
+    <div class="mhead"><span class="sw" style="background:${m.color}"></span>
+      <div><div class="mname">${m.name}</div><div class="mtk">${m.tk}</div></div>
+      ${ro.val?`<div class="mnow"><span class="mnow-v" style="color:${ro.c}">${ro.val}</span>${ro.tag?`<span class="mnow-t" style="color:${ro.c}">${ro.tag}</span>`:""}</div>`:""}
+    </div>
+    <div class="msec"><div class="mlbl">왜 보나요?</div><p>${det.w}</p></div>
+    ${det.r?`<div class="msec"><div class="mlbl">어떻게 읽나요?</div><p>${det.r}</p></div>`:""}
+    ${chips?`<div class="chips">${chips}</div>`:""}`;
+  mo.classList.add("open");
+  mo.querySelector(".mclose").onclick=closeModal;
+  document.body.style.overflow="hidden";
+}
+function closeModal(){const mo=document.getElementById("modal");mo.classList.remove("open");document.body.style.overflow="";}
+
+/* ============================================================
+   렌더러
+   ============================================================ */
+function fmtYFactory(m){ return v=> (m.pre||"")+fmt(v, m.decimals??0)+(m.suf||""); }
+
+function priceCard(m){
+  const series=genPrice(m);
+  const el=document.createElement("article"); el.className="card";
+  const chg=m.day||0, cc=chg>0?"up":(chg<0?"down":"flat"), arrow=chg>0?"▲":(chg<0?"▼":"·");
+  const ranges=m.ranges||RANGE_STD;
+  const opts={color:m.color, zeroline:m.zeroline, thresholds:m.thresholds, gridvals:m.gridvals,
+    fmtY:m.fmtY||(m.suf==="%"?(v=>v.toFixed(m.decimals)+"%"):fmtYFactory(m)), yd:m.decimals, aria:m.name+" 추이"};
+  el.innerHTML=`
+    <div class="chead">
+      <div class="cname"><span class="sw" style="background:${m.color}"></span>
+        <span><span class="nm">${m.name}</span><span class="tk">${m.tk}</span></span></div>
+      <div class="range" role="group" aria-label="${m.name} 기간">${ranges.map((r,i)=>`<button data-y="${r[1]}" aria-pressed="${i===0}">${r[0]}</button>`).join("")}</div>
+    </div>
+    <div class="chart" data-chart></div>
+    <div class="stat">
+      <div class="big"><span class="l">현재</span><span class="v small">${unitStr(m.level,m)}</span></div>
+      ${m.day!==undefined?`<span class="chg ${cc}">${arrow} ${Math.abs(chg).toFixed(2)}%</span>`:""}
+    </div>
+    ${m.ex?`<div class="explain">${m.ex}${m.chips?`<div class="chips">${m.chips.map(c=>`<span class="chip"><b>${c[0]}</b> ${c[1]}</span>`).join("")}</div>`:""}</div>`:""}`;
+  const box=el.querySelector("[data-chart]");
+  const draw=y=>{ const cut=Date.now()-y*365*864e5; let sl=series.filter(p=>p.t.getTime()>=cut); if(sl.length<2) sl=series; box.innerHTML=chartSVG(sl,opts); };
+  el.querySelectorAll(".range button").forEach(b=>b.addEventListener("click",()=>{
+    el.querySelectorAll(".range button").forEach(x=>x.setAttribute("aria-pressed", x===b?"true":"false"));
+    draw(+b.dataset.y);
+  }));
+  draw(ranges[0][1]);
+  return el;
+}
+
+function ddCard(m){
+  const series=genDrawdown(m), dd=series[series.length-1].v, v=verdict(dd);
+  const el=document.createElement("article"); el.className="card";
+  const ranges=m.ranges||RANGE_STD;
+  const opts={color:m.color, drawdown:true, aria:m.name+" 낙폭"};
+  el.innerHTML=`
+    <div class="chead">
+      <div class="cname"><span class="sw" style="background:${m.color}"></span>
+        <span><span class="nm">${m.name}</span><span class="tk">${m.tk}</span></span></div>
+      <div class="range" role="group" aria-label="${m.name} 기간">${ranges.map((r,i)=>`<button data-y="${r[1]}" aria-pressed="${i===0}">${r[0]}</button>`).join("")}</div>
+    </div>
+    <div class="chart" data-chart></div>
+    <div class="stat">
+      <div class="big"><span class="l">전고점 대비 · 현재 ${unitStr(m.level,m)}</span><span class="v" style="color:${v.c}">${dd.toFixed(1)}%</span></div>
+      <span class="badge" style="color:${v.c};background:${v.bg}">${v.tag}</span>
+    </div>
+    ${m.ex?`<div class="explain">${m.ex}</div>`:""}`;
+  const box=el.querySelector("[data-chart]");
+  const draw=y=>{ const cut=Date.now()-y*365*864e5; let sl=series.filter(p=>p.t.getTime()>=cut); if(sl.length<2) sl=series; box.innerHTML=chartSVG(sl,opts); };
+  el.querySelectorAll(".range button").forEach(b=>b.addEventListener("click",()=>{
+    el.querySelectorAll(".range button").forEach(x=>x.setAttribute("aria-pressed", x===b?"true":"false"));
+    draw(+b.dataset.y);
+  }));
+  draw(ranges[0][1]);
+  return el;
+}
+
+function gaugeCard(m){
+  const el=document.createElement("article"); el.className="card";
+  const val=m.level;
+  const lab = val<25?"극단적 공포":val<45?"공포":val<55?"중립":val<75?"탐욕":"극단적 탐욕";
+  const col = val<25?"var(--red)":val<45?"var(--amber)":val<55?"var(--dim)":val<75?"var(--green)":"#22c55e";
+  // 반원 게이지
+  const R=78,cx=100,cy=92,ang=Math.PI*(1-val/100);
+  const px=cx+R*Math.cos(ang), py=cy-R*Math.sin(ang);
+  const seg=(f,t,c)=>{const a0=Math.PI*(1-f/100),a1=Math.PI*(1-t/100);
+    return `<path d="M ${cx+R*Math.cos(a0)} ${cy-R*Math.sin(a0)} A ${R} ${R} 0 0 1 ${cx+R*Math.cos(a1)} ${cy-R*Math.sin(a1)}" fill="none" stroke="${c}" stroke-width="12" stroke-linecap="round"/>`;};
+  el.innerHTML=`
+    <div class="chead"><div class="cname"><span class="sw" style="background:${m.color}"></span>
+      <span><span class="nm">${m.name}</span><span class="tk">${m.tk}</span></span></div></div>
+    <div class="gauge-wrap">
+      <svg viewBox="0 0 200 108" width="100%" style="max-width:230px">
+        ${seg(0,25,"rgba(248,113,113,.35)")}${seg(25,45,"rgba(251,191,36,.35)")}${seg(45,55,"rgba(139,147,167,.35)")}${seg(55,75,"rgba(52,211,153,.35)")}${seg(75,100,"rgba(34,197,94,.4)")}
+        <line x1="${cx}" y1="${cy}" x2="${px.toFixed(1)}" y2="${py.toFixed(1)}" stroke="${col}" stroke-width="3"/>
+        <circle cx="${cx}" cy="${cy}" r="4" fill="${col}"/>
+      </svg>
+      <div class="gauge-val" style="color:${col}">${val}</div>
+      <div class="gauge-lab" style="color:${col}">${lab}</div>
+    </div>
+    <div class="fg-hist">${m.hist.map(h=>`<div class="c"><span class="t">${h[0]}</span><span class="n">${h[1]}</span></div>`).join("")}</div>
+    ${m.ex?`<div class="explain">${m.ex}</div>`:""}`;
+  return el;
+}
+
+function optionsCard(m){
+  const el=document.createElement("article"); el.className="card span3";
+  el.innerHTML=`
+    <div class="chead"><div class="cname"><span class="sw" style="background:${m.color}"></span>
+      <span><span class="nm">${m.name}</span><span class="tk">${m.tk}</span></span></div></div>
+    <div class="otiles">${m.tiles.map(t=>`<div class="otile"><div class="ok">${t[0]}</div><div class="ov">${t[1]}</div><div class="od">${t[2]}</div></div>`).join("")}</div>
+    ${m.ex?`<div class="explain">${m.ex}</div>`:""}`;
+  return el;
+}
+
+function heatCard(m){
+  const el=document.createElement("article"); el.className="card span3";
+  const cell=(nm,p)=>{
+    const a=Math.min(1,Math.abs(p)/2.5);
+    const bg=p>=0?`rgba(52,211,153,${0.1+a*0.32})`:`rgba(248,113,113,${0.1+a*0.32})`;
+    const cc=p>=0?"var(--green)":"var(--red)";
+    return `<div class="hcell" style="background:${bg}"><div class="hn">${nm}</div><div class="hp" style="color:${cc}">${p>0?"+":""}${p.toFixed(1)}%</div></div>`;
+  };
+  el.innerHTML=`
+    <div class="chead"><div class="cname"><span class="sw" style="background:${m.color}"></span>
+      <span><span class="nm">${m.name}</span><span class="tk">${m.tk}</span></span></div></div>
+    <div class="heat">${m.data.map(d=>cell(d[0],d[1])).join("")}</div>
+    ${m.ex?`<div class="explain">${m.ex}</div>`:""}`;
+  return el;
+}
+
+function renderModule(m){
+  if(m.kind==="dd") return ddCard(m);
+  if(m.kind==="gauge") return gaugeCard(m);
+  if(m.kind==="options") return optionsCard(m);
+  if(m.kind==="heat") return heatCard(m);
+  return priceCard(m);
+}
+
+/* 요약 스트립 */
+function buildHero(){
+  const hero=document.getElementById("hero");
+  const pick=[
+    ["spx","dd"],["ndx","dd"],["gold","px"],["btc","px"],["kospi","dd"],["krw","px"]
+  ];
+  const find=id=>{for(const g of GROUPS)for(const m of g.mods)if(m.id===id)return m;};
+  hero.innerHTML=pick.map(([id])=>{
+    const m=find(id);
+    let v,c,cc;
+    if(m.kind==="dd"){const dd=(m.level/m.ath-1)*100; v=dd.toFixed(1)+"%"; const vd=verdict(dd); c=`현재 ${unitStr(m.level,m)}`; cc=vd.c;}
+    else{v=unitStr(m.level,m); const d=m.day||0; c=(d>0?"▲ ":d<0?"▼ ":"")+Math.abs(d).toFixed(2)+"%"; cc=d>0?"var(--green)":d<0?"var(--red)":"var(--dim)";}
+    return `<div class="htile"><div class="hk"><span class="sw" style="background:${m.color}"></span>${m.name}</div>
+      <div class="hv">${v}</div><div class="hc" style="color:${cc}">${c}</div></div>`;
+  }).join("");
+}
+
+/* 공유 낙폭 설명 (자산 그룹 뒤) */
+function drawdownExplainer(){
+  const d=document.createElement("div"); d.className="dd-explain";
+  d.innerHTML=`<h3>📌 전고점 대비 낙폭(Drawdown)이란?</h3>
+    <p>현재 가격이 역대 최고점에서 얼마나 내려왔는지를 봐요. <b>-5% 이내</b>는 강세장, <b>-10~20%</b>는 조정, <b>-20% 이상</b>은 약세장이에요.</p>
+    <div class="zones">
+      <div class="zone s"><div class="zh">🏔️ -5% 이내</div><div class="zd">강세장 · ATH 근접 구간</div></div>
+      <div class="zone c"><div class="zh">⚠️ -10~20%</div><div class="zd">조정 구간 · 매수 기회 탐색</div></div>
+      <div class="zone b"><div class="zh">🐻 -20% 이상</div><div class="zd">약세장 · 리스크 관리 우선</div></div>
+    </div>`;
+  return d;
+}
+
+async function loadLiveData(){
+  /* 실시간 연동 지점 — 서버(프록시)에서 받아 MODULES 값 갱신 후 build()
+     예) const q = await fetch("/api/quote?symbol=^GSPC").then(r=>r.json());
+         find("spx").level=q.price; find("spx").ath=q.ath; */
+  return null;
+}
+
+/* ============================================================
+   최근 포스트 피드 (실시간: loadPosts()에서 채널 글 받아 POSTS.items 갱신 후 build())
+   ============================================================ */
+const POSTS = {
+  handle:"@daldong_22",
+  channelUrl:"https://t.me/daldong_22/4161",            // 달동이 · 차트/시황 브리핑 방
+  source:"텔레그램 · 차트/시황 브리핑",
+  items:[
+    {time:"2026년 7월 17일 오전 10:48", text:"[예시] 오늘 아침 시황 — 반도체 급락과 코스피 조정 진입 정리", url:"https://t.me/daldong_22/4161"},
+    {time:"2026년 7월 16일 오후 9:20",  text:"[예시] 금 $4,000 붕괴 — 안전자산이 왜 밀리나", url:"https://t.me/daldong_22/4161"},
+    {time:"2026년 7월 16일 오전 8:30",  text:"[예시] 美 CPI 둔화 → 크립토 반등 포인트 점검", url:"https://t.me/daldong_22/4161"},
+  ]
+};
+// 실시간: 전체 채널은 t.me/s/daldong_22 파싱, '시황 브리핑' 특정 주제만 뽑으려면
+// 텔레그램 봇 API로 message_thread_id 필터링 → POSTS.items 갱신 후 build()
+async function loadPosts(){ return null; }
+
+function buildPosts(){
+  const sec=document.createElement("section"); sec.className="group";
+  sec.innerHTML=`
+    <h2 class="group-title"><span class="em">🗞️</span>달동이 최근 포스트<span class="rule"></span>
+      <a class="handle" href="${POSTS.channelUrl}" target="_blank" rel="noopener">${POSTS.handle}</a></h2>
+    <div class="posts">
+      <div class="posts-head"><span class="pt">최근 채널 글</span>
+        <a class="pgo" href="${POSTS.channelUrl}" target="_blank" rel="noopener">채널 바로가기 →</a></div>
+      <div class="posts-sub">${POSTS.source} · 최신순</div>
+      ${POSTS.items.map(p=>`
+        <div class="post"><div class="pdot">🕘</div>
+          <div class="pbody">
+            <div class="prow"><span class="ptime">${p.time}</span><a class="pgo" href="${p.url}" target="_blank" rel="noopener">열기 →</a></div>
+            <a class="plink" href="${p.url}" target="_blank" rel="noopener">${p.text}</a>
+          </div></div>`).join("")}
+    </div>`;
+  return sec;
+}
+
+/* ============================================================
+   경제지표 발표 캘린더 (실시간: 캘린더 API로 예상/실제 채워 build())
+   실제치는 FRED, 일정+컨센서스는 캘린더 API(Trading Economics/FMP 등)
+   ============================================================ */
+const ECON = { items:[
+  {d:"07-14", t:"21:30", name:"6월 CPI (전년比)", imp:3, prev:"4.2%", fc:"3.8%", act:"3.5%", arrow:" ▼", tone:"good", note:"예상 하회·둔화"},
+  {d:"07-14", t:"21:30", name:"6월 근원 CPI (전년比)", imp:3, prev:"2.9%", fc:"2.9%", act:"2.6%", arrow:" ▼", tone:"good"},
+  {d:"07-15", t:"21:30", name:"6월 PPI (전년比)", imp:2, prev:"6.5%", fc:"—", act:"5.5%", arrow:" ▼", tone:"good"},
+  {d:"07-17", t:"23:00", name:"미시간대 소비자심리(예비)", imp:2, prev:"—", fc:"—", tone:"upcoming"},
+  {d:"07-30", t:"03:00", name:"FOMC 금리결정", imp:3, prev:"4.25~4.50%", fc:"동결 예상", tone:"upcoming"},
+  {d:"08-07", t:"21:30", name:"7월 고용보고서(NFP)", imp:3, prev:"—", fc:"—", tone:"upcoming"},
+  {d:"08-12", t:"21:30", name:"7월 CPI", imp:3, prev:"3.5%", fc:"—", tone:"upcoming"},
+]};
+async function loadEcon(){ return null; }
+
+function buildEcon(){
+  const sec=document.createElement("section"); sec.className="group";
+  sec.innerHTML=`<h2 class="group-title"><span class="em">📅</span>주요 경제지표 발표<span class="rule"></span><span class="handle">KST 기준</span></h2>
+    <div class="econ">
+      <div class="econ-cap">🔴 최중요 · 🟡 중요 · 발표되면 실제치가 자동으로 채워져요 (초록 = 시장에 우호적인 서프라이즈)</div>
+      ${ECON.items.map(e=>{
+        const up=e.tone==="upcoming";
+        const act=up?`<span class="ec-up">예정</span>`:`<span class="ec-act tone-${e.tone}">${e.act}${e.arrow||""}</span>`;
+        return `<div class="econ-row">
+          <div class="ec-date"><b>${e.d}</b>${e.t||""}</div>
+          <div class="ec-main"><div class="ec-name"><span class="ec-imp imp${e.imp}"></span>${e.name}</div>
+            ${(e.prev||e.fc)?`<div class="ec-vals">이전 ${e.prev||"—"} · 예상 ${e.fc||"—"}${e.note?" · "+e.note:""}</div>`:""}</div>
+          ${act}</div>`;
+      }).join("")}
+    </div>`;
+  return sec;
+}
+
+function build(){
+  buildHero();
+  const _lp=document.querySelector(".live-pill"); if(_lp) _lp.innerHTML = IS_LIVE ? '<span class="dot"></span> LIVE · 실시간' : '<span class="dot"></span> 샘플 · 2026-07-16';
+  const root=document.getElementById("groups"); root.innerHTML="";
+  root.appendChild(buildPosts());
+  root.appendChild(buildEcon());
+  GROUPS.forEach(g=>{
+    const sec=document.createElement("section"); sec.className="group";
+    sec.innerHTML=`<h2 class="group-title"><span class="em">${g.em}</span>${g.title}<span class="rule"></span></h2>`;
+    const grid=document.createElement("div"); grid.className="grid"+(g.cols===2?" two":"");
+    g.mods.forEach(m=>{
+      const card=renderModule(m);
+      card.classList.add("clickable");
+      card.insertAdjacentHTML("beforeend",`<button class="why-btn" type="button">ⓘ 이 지표를 왜 보나요?</button>`);
+      card.querySelector(".why-btn").addEventListener("click", e=>{ e.stopPropagation(); openModal(m); });
+      card.addEventListener("click", e=>{ if(e.target.closest(".range")||e.target.closest(".why-btn")) return; openModal(m); });
+      grid.appendChild(card);
+    });
+    sec.appendChild(grid);
+    if(g.title==="글로벌 자산" || g.title==="한국 자산") sec.appendChild(drawdownExplainer());
+    root.appendChild(sec);
+  });
+}
+let IS_LIVE=false;
+/* ============================================================
+   실시간 데이터 로딩: /api/* 에서 받아 모듈에 주입. 실패하면 샘플로 폴백.
+   ============================================================ */
+async function hydrate(){
+  const find=id=>{for(const g of GROUPS)for(const m of g.mods)if(m.id===id)return m;};
+  const ymap={spx:"^GSPC",ndx:"^IXIC",gold:"GC=F",btc:"BTC-USD",kospi:"^KS11",kosdaq:"^KQ11",sec:"005930.KS",krw:"KRW=X",vix:"^VIX",dxy:"DX-Y.NYB",jpy:"JPY=X",wti:"CL=F",copper:"HG=F"};
+  const sectorMap={"반도체":"SOXX","기술":"XLK","임의소비재":"XLY","통신":"XLC","금융":"XLF","산업재":"XLI","소재":"XLB","헬스케어":"XLV","필수소비재":"XLP","유틸리티":"XLU","부동산":"XLRE","에너지":"XLE"};
+  const optMap={"SKEW":"^SKEW","VVIX":"^VVIX","OVX":"^OVX"};
+  const fmap={us10y:"DGS10",curve:"T10Y2Y",m2:"M2SL",unrate:"UNRATE",claims:"ICSA",walcl:"WALCL",reserves:"WRESBAL"};
+  const ySyms=[...new Set([...Object.values(ymap),...Object.values(sectorMap),...Object.values(optMap)])];
+  try{
+    const data=await fetch(`/api/quotes?symbols=${encodeURIComponent(ySyms.join(","))}`).then(r=>r.json());
+    for(const [mid,sym] of Object.entries(ymap)){
+      const d=data[sym]; if(!d||d.error||!d.closes||!d.closes.length) continue;
+      const m=find(mid); if(!m) continue;
+      const closes=d.closes.map(c=>({t:new Date(c.t),v:c.v}));
+      if(m.kind==="dd"){ m._liveClose=closes; m.level=d.price; m.ath=Math.max.apply(null,closes.map(c=>c.v)); }
+      else { m._live=closes; m.level=d.price; if(typeof d.changePct==="number") m.day=+d.changePct.toFixed(2); }
+      IS_LIVE=true;
+    }
+    const sm=find("sectors");
+    if(sm) sm.data=sm.data.map(([name,val])=>{ const s=sectorMap[name],d=s&&data[s]; return [name, d&&!d.error&&typeof d.changePct==="number"? +d.changePct.toFixed(1):val]; });
+    const om=find("opts");
+    if(om) om.tiles=om.tiles.map(t=>{ const s=optMap[t[0]],d=s&&data[s]; return [t[0], d&&!d.error&&d.price!=null? +d.price.toFixed(0):t[1], t[2]]; });
+  }catch(e){}
+  try{
+    const data=await fetch(`/api/fred?series=${Object.values(fmap).join(",")}`).then(r=>r.json());
+    for(const [mid,id] of Object.entries(fmap)){
+      const d=data[id]; if(!d||d.error||!d.closes||!d.closes.length) continue;
+      const m=find(mid); if(!m) continue;
+      m._live=d.closes.map(c=>({t:new Date(c.t),v:c.v})); m.level=d.price; IS_LIVE=true;
+    }
+  }catch(e){}
+  try{
+    const fg=await fetch(`/api/feargreed`).then(r=>r.json());
+    const m=find("fg"); if(m&&fg&&typeof fg.score==="number"){ m.level=Math.round(fg.score); if(Array.isArray(fg.hist)&&fg.hist.length) m.hist=fg.hist; }
+  }catch(e){}
+  try{
+    const posts=await fetch(`/api/telegram?ch=daldong_22`).then(r=>r.json());
+    if(Array.isArray(posts)&&posts.length) POSTS.items=posts;
+  }catch(e){}
+}
+document.getElementById("modal").addEventListener("click", e=>{ if(e.target.matches("[data-close]")) closeModal(); });
+document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeModal(); });
+hydrate().finally(()=>build());
+</script>
+</body>
+</html>
