@@ -326,13 +326,13 @@ function genDrawdown(cfg){
 
 /* 통합 라인 차트 */
 function chartSVG(slice, opts){
-  const W=600,H=190,padT=20,padB=26,padL=opts.padL||38,padR=10;
+  const W=600,H=204,padT=24,padB=30,padL=opts.padL||38,padR=10;
   const pW=W-padL-padR,pH=H-padT-padB,n=slice.length;
   let mn=Infinity,mx=-Infinity; for(const p of slice){if(p.v<mn)mn=p.v; if(p.v>mx)mx=p.v;}
   let yBot,yTop;
-  if(opts.drawdown){ yBot=Math.min(-5,Math.floor((mn-1.2)/5)*5); yTop=Math.max(1.2,(0-yBot)*0.08); }
+  if(opts.drawdown){ yBot=Math.min(-5,Math.floor((mn-1.2)/5)*5); yTop=Math.max(2.2,(0-yBot)*0.16); }
   else{
-    const pad=(mx-mn)*0.14||Math.abs(mx)*0.06||1;
+    const pad=(mx-mn)*0.22||Math.abs(mx)*0.08||1;
     yTop=mx+pad; yBot=mn-pad;
     if(opts.zeroline && yBot>0) yBot=Math.min(0,yBot);
     if(opts.zeroline && yBot>-0.05 && mn>=0) yBot=0;
