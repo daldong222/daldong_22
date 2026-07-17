@@ -181,6 +181,14 @@
   .ptime{font-size:11.5px;color:var(--dim);font-variant-numeric:tabular-nums}
   .plink{display:block;margin-top:4px;font-size:13px;color:#a9c4ff;text-decoration:none;word-break:break-word}
   .plink:hover{text-decoration:underline}
+  .tg-cta{background:linear-gradient(180deg,var(--card),var(--card-2));border:1px solid var(--border);border-radius:15px;padding:20px 22px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .tg-ico{width:52px;height:52px;border-radius:14px;flex:0 0 auto;display:grid;place-items:center;background:linear-gradient(135deg,#2aabee,#229ed9);box-shadow:0 6px 16px rgba(34,158,217,.35)}
+  .tg-ico svg{width:30px;height:30px;fill:#fff}
+  .tg-txt{flex:1;min-width:180px}
+  .tg-txt .t{font-size:16px;font-weight:800;letter-spacing:-.01em;margin-bottom:4px}
+  .tg-txt .d{font-size:12.5px;color:var(--dim);line-height:1.5}
+  .tg-btn{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,#2aabee,#229ed9);color:#fff;font-weight:800;font-size:13.5px;text-decoration:none;padding:11px 18px;border-radius:11px;transition:.15s;white-space:nowrap}
+  .tg-btn:hover{filter:brightness(1.08);transform:translateY(-1px)}
 
   /* economic calendar */
   .econ{background:linear-gradient(180deg,var(--card),var(--card-2));border:1px solid var(--border);border-radius:15px;padding:4px 4px 6px}
@@ -239,7 +247,7 @@
       <div class="logo"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></div>
       <div>
         <h1>달동이 경제모니터링</h1>
-        <div class="sub">MARKET MONITOR · v4</div>
+        <div class="sub">MARKET MONITOR</div>
       </div>
     </div>
     <div class="top-right">
@@ -819,33 +827,21 @@ async function loadLiveData(){
    ============================================================ */
 const POSTS = {
   handle:"@daldong_22",
-  channelUrl:"https://t.me/daldong_22/4161",            // 달동이 · 차트/시황 브리핑 방
-  source:"텔레그램 · 차트/시황 브리핑",
-  items:[
-    {time:"2026년 7월 17일 오전 10:48", text:"[예시] 오늘 아침 시황 — 반도체 급락과 코스피 조정 진입 정리", url:"https://t.me/daldong_22/4161"},
-    {time:"2026년 7월 16일 오후 9:20",  text:"[예시] 금 $4,000 붕괴 — 안전자산이 왜 밀리나", url:"https://t.me/daldong_22/4161"},
-    {time:"2026년 7월 16일 오전 8:30",  text:"[예시] 美 CPI 둔화 → 크립토 반등 포인트 점검", url:"https://t.me/daldong_22/4161"},
-  ]
+  channelUrl:"https://t.me/daldong_22",
+  title:"달동이 차트·시황 브리핑",
+  desc:"매일 아침 시황부터 주요 이슈 정리까지 — 실시간 브리핑은 텔레그램 채널에서 받아보세요.",
 };
-// 실시간: 전체 채널은 t.me/s/daldong_22 파싱, '시황 브리핑' 특정 주제만 뽑으려면
-// 텔레그램 봇 API로 message_thread_id 필터링 → POSTS.items 갱신 후 build()
 async function loadPosts(){ return null; }
 
 function buildPosts(){
   const sec=document.createElement("section"); sec.className="group";
   sec.innerHTML=`
-    <h2 class="group-title"><span class="em">🗞️</span>달동이 최근 포스트<span class="rule"></span>
+    <h2 class="group-title"><span class="em">🗞️</span>달동이 채널<span class="rule"></span>
       <a class="handle" href="${POSTS.channelUrl}" target="_blank" rel="noopener">${POSTS.handle}</a></h2>
-    <div class="posts">
-      <div class="posts-head"><span class="pt">최근 채널 글</span>
-        <a class="pgo" href="${POSTS.channelUrl}" target="_blank" rel="noopener">채널 바로가기 →</a></div>
-      <div class="posts-sub">${POSTS.source} · 최신순</div>
-      ${POSTS.items.map(p=>`
-        <div class="post"><div class="pdot">🕘</div>
-          <div class="pbody">
-            <div class="prow"><span class="ptime">${p.time}</span><a class="pgo" href="${p.url}" target="_blank" rel="noopener">열기 →</a></div>
-            <a class="plink" href="${p.url}" target="_blank" rel="noopener">${p.text}</a>
-          </div></div>`).join("")}
+    <div class="tg-cta">
+      <div class="tg-ico"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"/></svg></div>
+      <div class="tg-txt"><div class="t">${POSTS.title}</div><div class="d">${POSTS.desc}</div></div>
+      <a class="tg-btn" href="${POSTS.channelUrl}" target="_blank" rel="noopener">채널 입장하기 →</a>
     </div>`;
   return sec;
 }
@@ -945,10 +941,6 @@ async function hydrate(){
   try{
     const fg=await fetch(`/api/feargreed`).then(r=>r.json());
     const m=find("fg"); if(m&&fg&&typeof fg.score==="number"){ m.level=Math.round(fg.score); if(Array.isArray(fg.hist)&&fg.hist.length) m.hist=fg.hist; }
-  }catch(e){}
-  try{
-    const posts=await fetch(`/api/telegram?ch=daldong_22`).then(r=>r.json());
-    if(Array.isArray(posts)&&posts.length) POSTS.items=posts;
   }catch(e){}
 }
 document.getElementById("modal").addEventListener("click", e=>{ if(e.target.matches("[data-close]")) closeModal(); });
