@@ -50,7 +50,12 @@
 
   /* summary hero strip */
   .hero{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:26px}
-  .htile{background:linear-gradient(180deg,var(--card),var(--card-2));border:1px solid var(--border);border-radius:13px;padding:12px 13px}
+  .htile{background:linear-gradient(180deg,var(--card),var(--card-2));border:1px solid var(--border);border-radius:13px;padding:12px 13px;cursor:pointer;transition:border-color .15s,transform .1s}
+  .htile:hover{border-color:rgba(255,255,255,.2);transform:translateY(-1px)}
+  .htile:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+  .card.flash{animation:cardflash 1.5s ease}
+  @keyframes cardflash{0%,100%{box-shadow:none;border-color:var(--border)}25%{box-shadow:0 0 0 2px var(--blue);border-color:var(--blue)}}
+  html{scroll-behavior:smooth}
   .htile .hk{font-size:11px;color:var(--dim);font-weight:600;margin-bottom:6px;display:flex;align-items:center;gap:6px}
   .htile .hk .sw{width:7px;height:7px;border-radius:2px}
   .htile .hv{font-size:18px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.1}
@@ -326,11 +331,11 @@ function genDrawdown(cfg){
 
 /* 통합 라인 차트 */
 function chartSVG(slice, opts){
-  const W=600,H=204,padT=24,padB=30,padL=opts.padL||38,padR=10;
+  const W=600,H=240,padT=30,padB=34,padL=opts.padL||40,padR=12;
   const pW=W-padL-padR,pH=H-padT-padB,n=slice.length;
   let mn=Infinity,mx=-Infinity; for(const p of slice){if(p.v<mn)mn=p.v; if(p.v>mx)mx=p.v;}
   let yBot,yTop;
-  if(opts.drawdown){ yBot=Math.min(-5,Math.floor((mn-1.2)/5)*5); yTop=Math.max(2.2,(0-yBot)*0.16); }
+  if(opts.drawdown){ yBot=Math.min(-5,Math.floor((mn-1.2)/5)*5); yTop=Math.max(3.5,(0-yBot)*0.24); }
   else{
     const pad=(mx-mn)*0.22||Math.abs(mx)*0.08||1;
     yTop=mx+pad; yBot=mn-pad;
@@ -712,18 +717,25 @@ function renderModule(m){
 /* 요약 스트립 */
 function buildHero(){
   const hero=document.getElementById("hero");
-  const pick=[
-    ["spx","dd"],["ndx","dd"],["gold","px"],["btc","px"],["kospi","dd"],["krw","px"]
-  ];
   const find=id=>{for(const g of GROUPS)for(const m of g.mods)if(m.id===id)return m;};
-  hero.innerHTML=pick.map(([id])=>{
+  const ids=[];
+  for(const g of GROUPS) for(const m of g.mods) if(m.kind==="dd"||m.kind==="px"||m.kind==="gauge") ids.push(m.id);
+  hero.innerHTML=ids.map(id=>{
     const m=find(id);
-    let head, cc; const sub=`현재 ${unitStr(m.level,m)}`;
-    if(m.kind==="dd"){ const dd=(m.level/m.ath-1)*100; head=dd.toFixed(1)+"%"; cc=verdict(dd).c; }
-    else{ const d=m.day||0; head=(d>0?"▲ ":d<0?"▼ ":"")+Math.abs(d).toFixed(2)+"%"; cc=d>0?"var(--green)":d<0?"var(--red)":"var(--dim)"; }
-    return `<div class="htile"><div class="hk"><span class="sw" style="background:${m.color}"></span>${m.name}</div>
+    let head, cc, sub;
+    if(m.kind==="dd"){ const dd=(m.level/m.ath-1)*100; head=dd.toFixed(1)+"%"; cc=verdict(dd).c; sub=`현재 ${unitStr(m.level,m)}`; }
+    else if(m.kind==="gauge"){ const v=m.level; head=String(v); cc=v<45?"var(--amber)":v<55?"var(--dim)":"var(--green)"; sub="공포탐욕"; }
+    else{ const d=m.day||0; head=(d>0?"▲ ":d<0?"▼ ":"")+Math.abs(d).toFixed(2)+"%"; cc=d>0?"var(--green)":d<0?"var(--red)":"var(--dim)"; sub=`현재 ${unitStr(m.level,m)}`; }
+    return `<div class="htile" data-target="${m.id}" role="button" tabindex="0" aria-label="${m.name} 차트로 이동">
+      <div class="hk"><span class="sw" style="background:${m.color}"></span>${m.name}</div>
       <div class="hv" style="color:${cc}">${head}</div><div class="hc">${sub}</div></div>`;
   }).join("");
+  hero.querySelectorAll("[data-target]").forEach(t=>{
+    const go=()=>{ const el=document.getElementById("card-"+t.dataset.target);
+      if(el){ el.scrollIntoView({behavior:"smooth",block:"center"}); el.classList.add("flash"); setTimeout(()=>el.classList.remove("flash"),1500); } };
+    t.addEventListener("click",go);
+    t.addEventListener("keydown",e=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); go(); } });
+  });
 }
 
 /* 공유 낙폭 설명 (자산 그룹 뒤) */
@@ -827,6 +839,7 @@ function build(){
     const grid=document.createElement("div"); grid.className="grid"+(g.cols===2?" two":"");
     g.mods.forEach(m=>{
       const card=renderModule(m);
+      card.id="card-"+m.id;
       card.classList.add("clickable");
       card.insertAdjacentHTML("beforeend",`<button class="why-btn" type="button">ⓘ 이 지표를 왜 보나요?</button>`);
       card.querySelector(".why-btn").addEventListener("click", e=>{ e.stopPropagation(); openModal(m); });
