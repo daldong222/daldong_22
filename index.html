@@ -92,7 +92,10 @@
   .range button[aria-pressed="true"]{background:rgba(255,255,255,.09);color:var(--text)}
   .range button:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
 
-  .chart{width:100%;margin:2px 0 10px}
+  .chart{width:100%;margin:2px 0 10px;position:relative}
+  .xtip{position:absolute;pointer-events:none;background:rgba(13,20,32,.96);border:1px solid var(--border);border-radius:8px;padding:5px 9px;font-size:11px;z-index:6;display:none;white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,.45)}
+  .xt-d{color:var(--dim);font-size:10px;margin-bottom:2px;font-variant-numeric:tabular-nums}
+  .xt-v{font-weight:800;font-variant-numeric:tabular-nums}
   .chart svg{display:block;width:100%;height:auto}
   .axis-label{fill:var(--faint);font-size:9px;font-family:var(--font)}
 
@@ -236,7 +239,7 @@
       <div class="logo"><svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg></div>
       <div>
         <h1>달동이 경제모니터링</h1>
-        <div class="sub">MARKET MONITOR · v2</div>
+        <div class="sub">MARKET MONITOR · v4</div>
       </div>
     </div>
     <div class="top-right">
@@ -374,7 +377,7 @@ function chartSVG(slice, opts){
   for(const i of idxs){const a=i===0?"start":(i===n-1?"end":"middle");
     xs+=`<text class="axis-label" x="${X(i).toFixed(1)}" y="${H-6}" text-anchor="${a}">${fmtDate(slice[i].t)}</text>`;}
   const gid="g"+Math.random().toString(36).slice(2,7), ex=X(n-1),ey=Y(slice[n-1].v),c=opts.color;
-  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${opts.aria||''}">
+  const svg=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${opts.aria||''}">
     <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="${c}" stop-opacity=".26"/><stop offset="100%" stop-color="${c}" stop-opacity="0"/>
     </linearGradient></defs>
@@ -383,7 +386,47 @@ function chartSVG(slice, opts){
     <path d="${line}" fill="none" stroke="${c}" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
     <circle cx="${ex.toFixed(1)}" cy="${ey.toFixed(1)}" r="3.2" fill="${c}"/>
     <circle cx="${ex.toFixed(1)}" cy="${ey.toFixed(1)}" r="6.2" fill="${c}" opacity=".18"/>
-    ${xs}</svg>`;
+    ${xs}
+    <line class="xhair" x1="0" y1="${padT}" x2="0" y2="${(padT+pH).toFixed(1)}" stroke="rgba(255,255,255,.32)" stroke-width="1" stroke-dasharray="3 3" style="display:none"/>
+    <circle class="xdot" r="4.2" fill="${c}" stroke="#0b1220" stroke-width="2" style="display:none"/>
+    <rect class="xhit" x="${padL}" y="${padT}" width="${pW}" height="${pH}" fill="transparent" style="cursor:crosshair"/>
+  </svg>`;
+  return { svg, X, Y, slice, W, H, padL, padT, plotW:pW, plotH:pH, color:c };
+}
+
+/* 차트 위 마우스/터치 → 날짜·값 툴팁(크로스헤어) */
+function attachHover(box, ch, opts, m){
+  const svg=box.querySelector("svg"); if(!svg) return;
+  let tip=box.querySelector(".xtip");
+  if(!tip){ tip=document.createElement("div"); tip.className="xtip"; box.appendChild(tip); }
+  const xhair=svg.querySelector(".xhair"), xdot=svg.querySelector(".xdot"), hit=svg.querySelector(".xhit");
+  if(!hit) return;
+  const {X,Y,slice,W,H,padL,plotW}=ch, n=slice.length;
+  const fmtVal=v=>{ if(opts.suf==="%") return v.toFixed(m&&m.decimals!=null?m.decimals:2)+"%";
+    return (m&&m.pre||"")+fmt(v, m&&m.decimals!=null?m.decimals:0)+(m&&m.suf||""); };
+  function move(clientX){
+    const r=svg.getBoundingClientRect(); if(!r.width) return;
+    const sx=(clientX-r.left)/r.width*W;
+    let i=Math.round((sx-padL)/plotW*(n-1)); i=Math.max(0,Math.min(n-1,i));
+    const px=X(i), py=Y(slice[i].v);
+    if(xhair){ xhair.setAttribute("x1",px.toFixed(1)); xhair.setAttribute("x2",px.toFixed(1)); xhair.style.display=""; }
+    if(xdot){ xdot.setAttribute("cx",px.toFixed(1)); xdot.setAttribute("cy",py.toFixed(1)); xdot.style.display=""; }
+    const d=slice[i].t;
+    const ds=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+    tip.innerHTML=`<div class="xt-d">${ds}</div><div class="xt-v" style="color:${ch.color}">${fmtVal(slice[i].v)}</div>`;
+    tip.style.display="block";
+    const cx=px/W*r.width, cy=py/H*r.height, tw=tip.offsetWidth||80;
+    let left=cx+12; if(left+tw>r.width-2) left=cx-tw-12;
+    tip.style.left=Math.max(2,left)+"px";
+    tip.style.top=Math.max(2,cy-42)+"px";
+  }
+  const onMove=e=>{ const cx=e.touches&&e.touches[0]?e.touches[0].clientX:e.clientX; move(cx); };
+  const hide=()=>{ if(xhair)xhair.style.display="none"; if(xdot)xdot.style.display="none"; tip.style.display="none"; };
+  hit.addEventListener("mousemove",onMove);
+  hit.addEventListener("mouseleave",hide);
+  hit.addEventListener("touchstart",onMove,{passive:true});
+  hit.addEventListener("touchmove",onMove,{passive:true});
+  hit.addEventListener("touchend",hide);
 }
 
 /* 낙폭 판정 */
@@ -406,12 +449,12 @@ const DEF_MKT=3, DEF_MAC=0;
 
 const GROUPS = [
  { title:"글로벌 자산", em:"📊", cols:2, mods:[
-   {id:"spx",kind:"dd",name:"S&P 500",tk:"^GSPC",color:"#5b9bff",level:7534,ath:7610,pre:"",suf:" pt",decimals:0,seed:11,
-     dips:[[42,-13,4],[30,-12,3.6],[20,-14,3.2],[11,-8,3],[4.2,-16,2.1]],ranges:RANGE_STD,
-     ex:"미국 대형주 대표 지수. 전고점 대비 낙폭으로 강세/조정/약세를 판단해요."},
-   {id:"ndx",kind:"dd",name:"나스닥",tk:"^IXIC",color:"#a78bfa",level:25882,ath:27102,pre:"",suf:" pt",decimals:0,seed:29,
-     dips:[[41,-18,3.6],[29,-16,3.2],[19,-20,3],[10,-12,2.8],[4,-24,2.2]],ranges:RANGE_STD,
-     ex:"기술·성장주 비중이 커서 금리·유동성에 더 민감하게 출렁여요."},
+   {id:"spx",kind:"px",name:"S&P 500",tk:"^GSPC",color:"#5b9bff",level:7534,pre:"",suf:" pt",decimals:0,day:-0.79,seed:11,vol:.012,
+     points:[[54,3800],[36,4400],[20,4700],[8,6100],[2,7100],[0,7534]],ranges:RANGE_STD,
+     ex:"미국 대형주 500개 지수. 글로벌 증시의 기준점이에요."},
+   {id:"ndx",kind:"px",name:"나스닥",tk:"^IXIC",color:"#a78bfa",level:25882,pre:"",suf:" pt",decimals:0,day:-1.47,seed:29,vol:.015,
+     points:[[54,13000],[36,15500],[20,16500],[8,22000],[2,26500],[0,25882]],ranges:RANGE_STD,
+     ex:"기술·성장주 중심 지수. 금리·유동성에 민감하게 출렁여요."},
    {id:"gold",kind:"px",name:"금 (Gold)",tk:"GC=F",color:"#f0b429",level:4008,ath:4519,pre:"$",suf:"",decimals:0,day:-1.06,seed:47,vol:.02,
      points:[[54,1980],[36,2350],[18,3050],[6,4519],[2,4300],[0,4008]],ranges:RANGE_STD,
      ex:"안전자산 대표. 달러·실질금리와 반대로 움직여요. 지금은 ATH 대비 약 -11%로 조정 구간.",
@@ -423,12 +466,12 @@ const GROUPS = [
  ]},
 
  { title:"한국 자산", em:"🇰🇷", cols:2, mods:[
-   {id:"kospi",kind:"dd",name:"코스피",tk:"^KS11",color:"#5b9bff",level:6820.6,ath:7290,pre:"",suf:"",decimals:2,seed:53,
-     dips:[[40,-16,3.4],[26,-14,3],[14,-11,2.8],[0.4,-9,0.9]],ranges:RANGE_STD,
-     ex:"S&P와 나란히 보면 한국 증시의 상대 강도가 보여요. 7/16 -6.4% 급락으로 조정 진입."},
-   {id:"kosdaq",kind:"dd",name:"코스닥",tk:"^KQ11",color:"#a78bfa",level:791.84,ath:850,pre:"",suf:"",decimals:2,seed:59,
-     dips:[[38,-20,3.4],[24,-16,3],[12,-13,2.8],[0.4,-8,0.9]],ranges:RANGE_STD,
-     ex:"IT·바이오 등 성장주 비중이 커서 금리·유동성 변화에 더 크게 반응해요."},
+   {id:"kospi",kind:"px",name:"코스피",tk:"^KS11",color:"#5b9bff",level:6820.6,pre:"",suf:"",decimals:2,day:-6.37,seed:53,vol:.014,
+     points:[[54,3200],[36,2500],[20,2700],[8,7000],[2,7290],[0,6820.6]],ranges:RANGE_STD,
+     ex:"한국 대표 지수. 외국인 수급·환율에 민감해요."},
+   {id:"kosdaq",kind:"px",name:"코스닥",tk:"^KQ11",color:"#a78bfa",level:791.84,pre:"",suf:"",decimals:2,day:-4.53,seed:59,vol:.016,
+     points:[[54,900],[36,700],[20,780],[8,850],[2,829],[0,791.84]],ranges:RANGE_STD,
+     ex:"성장주·개인 비중이 큰 시장. 변동성이 커요."},
    {id:"sec",kind:"px",name:"삼성전자",tk:"005930",color:"#5b9bff",level:255000,ath:0,pre:"",suf:"원",decimals:0,day:-8.77,seed:61,vol:.02,
      points:[[54,70000],[30,130000],[12,240000],[3,300000],[0.5,279500],[0,255000]],ranges:RANGE_STD,
      ex:"코스피 시총 20%+. 반도체 업황·글로벌 IT 수요·환율에 민감한 한국 증시 바로미터.",
@@ -520,9 +563,9 @@ const GROUPS = [
    ============================================================ */
 const DETAIL = {
  spx:{w:"전 세계 위험자산의 기준점이에요. 미국 대형주 500개를 묶은 지수라, 글로벌 증시가 위로 가는지 아래로 가는지를 여기서 제일 먼저 확인해요.",
-      r:"낙폭 -5% 이내면 강세, -10~20%면 조정(분할매수 관점), -20%↓면 약세라 리스크 관리 우선. 나스닥과 나란히 보면 성장주로 돈이 쏠렸는지도 읽을 수 있어요."},
+      r:"전일 대비 등락으로 그날 시장 방향을 봐요. 나스닥과 나란히 보면 성장주로 돈이 쏠렸는지도 읽을 수 있어요."},
  ndx:{w:"기술·성장주의 심장이에요. AI·반도체 사이클과 유동성 변화가 어느 지수보다 여기 먼저, 크게 반영돼요.",
-      r:"S&P보다 낙폭이 깊어지면 성장주에서 돈이 빠지는 중이라는 신호. 금리가 오르는 국면에서 특히 약해집니다."},
+      r:"S&P보다 더 크게 빠지면 성장주에서 돈이 빠지는 중이라는 신호. 금리가 오르는 국면에서 특히 약해집니다."},
  gold:{w:"위기·인플레·달러 약세의 피난처예요. 주식과 반대로 움직일 때가 많아 포트폴리오 방어용으로 봅니다.",
       r:"실질금리·달러와 반대로 움직여요. 지금은 ATH 대비 약 -11%로 조정 구간 — 안전자산 수요가 식었다는 뜻이에요."},
  btc:{w:"유동성의 최전선이에요. 돈이 풀리는지 조이는지를 가장 빠르고 크게 반영하는, 위험선호의 온도계예요.",
@@ -530,7 +573,7 @@ const DETAIL = {
  kospi:{w:"내 계좌에 가장 직접 영향을 주는 지수예요. S&P와 나란히 보면 '한국만 약한지, 글로벌이 약한지'가 구분돼요.",
       r:"외국인 수급과 환율에 민감해요. 7/16처럼 하루 -6%가 나오는 건 외국인 이탈 + 환율 급등이 겹칠 때예요."},
  kosdaq:{w:"성장주·개인 비중이 큰 시장이라, 시장의 과열과 공포가 코스피보다 먼저 드러나요.",
-      r:"금리·유동성에 더 민감해요. 코스피보다 낙폭이 깊으면 위험회피 심리가 강한 국면이라는 뜻."},
+      r:"금리·유동성에 더 민감해요. 코스피보다 더 크게 빠지면 위험회피 심리가 강한 국면이라는 뜻."},
  sec:{w:"코스피 시총 20%+로 사실상 지수 그 자체예요. 반도체 업황의 바로미터라 삼전 하나로 시장 분위기가 읽혀요.",
       r:"HBM·메모리 사이클, 외국인 수급, 원달러 환율이 핵심 변수. 외국인이 팔고 환율이 오르면 같이 밀립니다."},
  krw:{w:"환율은 개미한테 '숨은 손익'이에요. 오르면 외국인 자금이 나가고 수입물가가 올라 체감 경기에 직격이에요.",
@@ -630,7 +673,7 @@ function priceCard(m){
     </div>
     ${m.ex?`<div class="explain">${m.ex}${m.chips?`<div class="chips">${m.chips.map(c=>`<span class="chip"><b>${c[0]}</b> ${c[1]}</span>`).join("")}</div>`:""}</div>`:""}`;
   const box=el.querySelector("[data-chart]");
-  const draw=(days)=>{ let src=series; if(days<=7){ const iv=(m.kind==="dd")?m._intraDD:m._intra; if(iv&&iv.length) src=iv; } const cut=Date.now()-days*864e5; let sl=src.filter(p=>p.t.getTime()>=cut); if(sl.length<2) sl=src.slice(-8); box.innerHTML=chartSVG(sl,opts); };
+  const draw=(days)=>{ let src=series; if(days<=7){ const iv=(m.kind==="dd")?m._intraDD:m._intra; if(iv&&iv.length) src=iv; } const cut=Date.now()-days*864e5; let sl=src.filter(p=>p.t.getTime()>=cut); if(sl.length<2) sl=src.slice(-8); const ch=chartSVG(sl,opts); box.innerHTML=ch.svg; attachHover(box,ch,opts,m); };
   el.querySelectorAll(".range button").forEach(b=>b.addEventListener("click",()=>{
     el.querySelectorAll(".range button").forEach(x=>x.setAttribute("aria-pressed", x===b?"true":"false"));
     draw(+b.dataset.y);
@@ -657,7 +700,7 @@ function ddCard(m){
     </div>
     ${m.ex?`<div class="explain">${m.ex}</div>`:""}`;
   const box=el.querySelector("[data-chart]");
-  const draw=(days)=>{ let src=series; if(days<=7){ const iv=(m.kind==="dd")?m._intraDD:m._intra; if(iv&&iv.length) src=iv; } const cut=Date.now()-days*864e5; let sl=src.filter(p=>p.t.getTime()>=cut); if(sl.length<2) sl=src.slice(-8); box.innerHTML=chartSVG(sl,opts); };
+  const draw=(days)=>{ let src=series; if(days<=7){ const iv=(m.kind==="dd")?m._intraDD:m._intra; if(iv&&iv.length) src=iv; } const cut=Date.now()-days*864e5; let sl=src.filter(p=>p.t.getTime()>=cut); if(sl.length<2) sl=src.slice(-8); const ch=chartSVG(sl,opts); box.innerHTML=ch.svg; attachHover(box,ch,opts,m); };
   el.querySelectorAll(".range button").forEach(b=>b.addEventListener("click",()=>{
     el.querySelectorAll(".range button").forEach(x=>x.setAttribute("aria-pressed", x===b?"true":"false"));
     draw(+b.dataset.y);
@@ -860,7 +903,6 @@ function build(){
       grid.appendChild(card);
     });
     sec.appendChild(grid);
-    if(g.title==="글로벌 자산" || g.title==="한국 자산") sec.appendChild(drawdownExplainer());
     root.appendChild(sec);
   });
 }
