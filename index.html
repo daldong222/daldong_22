@@ -859,13 +859,28 @@ const ECON = { items:[
   {d:"08-07", t:"21:30", name:"7월 고용보고서(NFP)", imp:3, prev:"—", fc:"—", tone:"upcoming"},
   {d:"08-12", t:"21:30", name:"7월 CPI", imp:3, prev:"3.5%", fc:"—", tone:"upcoming"},
 ]};
-async function loadEcon(){ return null; }
+async function loadEcon(){
+  try{
+    const d=await fetch("/api/calendar").then(r=>r.json());
+    if(d&&Array.isArray(d.items)&&d.items.length){
+      const today=new Date().toISOString().slice(0,10);
+      ECON.items=d.items.map(e=>{
+        const done=e.act!=null&&e.d<=today;
+        return {d:e.d.slice(5), t:e.t, name:e.name, imp:e.imp,
+          prev:e.prev||"—", fc:e.fc||"—", act:e.act||"", arrow:"",
+          tone: done?"good":"upcoming"};
+      });
+      ECON.live=true;
+    }
+  }catch(e){}
+  return null;
+}
 
 function buildEcon(){
   const sec=document.createElement("section"); sec.className="group";
   sec.innerHTML=`<h2 class="group-title"><span class="em">📅</span>주요 경제지표 발표<span class="rule"></span><span class="handle">KST 기준</span></h2>
     <div class="econ">
-      <div class="econ-cap">🔴 최중요 · 🟡 중요 · 발표되면 실제치가 자동으로 채워져요 (초록 = 시장에 우호적인 서프라이즈)</div>
+      <div class="econ-cap">🔴 최중요 · 🟡 중요 · FRED 자동 연동 · 지난 일정은 정리되고 발표되면 실제치가 채워져요 (예상치는 제공되지 않음)</div>
       ${ECON.items.map(e=>{
         const up=e.tone==="upcoming";
         const act=up?`<span class="ec-up">예정</span>`:`<span class="ec-act tone-${e.tone}">${e.act}${e.arrow||""}</span>`;
@@ -942,6 +957,7 @@ async function hydrate(){
     const fg=await fetch(`/api/feargreed`).then(r=>r.json());
     const m=find("fg"); if(m&&fg&&typeof fg.score==="number"){ m.level=Math.round(fg.score); if(Array.isArray(fg.hist)&&fg.hist.length) m.hist=fg.hist; }
   }catch(e){}
+  try{ await loadEcon(); }catch(e){}
 }
 document.getElementById("modal").addEventListener("click", e=>{ if(e.target.matches("[data-close]")) closeModal(); });
 document.addEventListener("keydown", e=>{ if(e.key==="Escape") closeModal(); });
